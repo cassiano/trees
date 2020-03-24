@@ -32,8 +32,22 @@ class Tree
     !left && !right
   end
 
+  def top_root
+    parent&.top_root || self
+  end
+
   def balanced?
     ((left&.height || 0) - (right&.height || 0)).abs <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+  end
+
+  def descendant_type
+    if parent
+      if parent.left == self
+        :left
+      elsif parent.right == self
+        :right
+      end
+    end
   end
 
   def height
@@ -196,22 +210,22 @@ class Tree
 end
 
 class BST < Tree
-  def initialize(value)
-    super
-  end
-
   def add_child(child_value)
     if child_value <= value
       if left
         left.add_child child_value
       else
-        self.left = BST.new(child_value)
+        self.class.new(child_value).tap do |new_child|
+          self.left = new_child
+        end
       end
     else
       if right
         right.add_child child_value
       else
-        self.right = BST.new(child_value)
+        self.class.new(child_value).tap do |new_child|
+          self.right = new_child
+        end
       end
     end
   end
@@ -237,6 +251,79 @@ class BST < Tree
   protected :left=, :right=, :value=
 end
 
+# https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
+class AvlTree < BST
+  def replace_parent(previous_root, previous_root_parent = previous_root.parent)
+    if previous_root_parent
+      if previous_root_parent.left == previous_root
+        previous_root_parent.left = self
+      elsif previous_root_parent.right == previous_root
+        previous_root_parent.right = self
+      end
+    else
+      self.parent = nil
+    end
+  end
+
+  def rotate(direction)                                         # (x = self if direction == :left or y = self if direction == :right)
+    puts "Rotating node #{value} to the #{direction}..."
+
+    previous_parent = parent
+
+    case direction
+      when :left
+        previous_right = right                                  # y
+        self.right = previous_right.left                        # T2
+        previous_right.left = self                              # x
+        previous_right.replace_parent self, previous_parent
+      when :right
+        previous_left = left                                    # x
+        self.left = previous_left.right                         # T2
+        previous_left.right = self                              # y
+        previous_left.replace_parent self, previous_parent
+    end
+  end
+
+  def add_avl_child(child_value)
+    add_child(child_value).tap do |new_child|                   # w
+      ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
+
+      found_unbalanced_node = loop do
+        if (ancestor = ancestors_path.last[:node].parent)
+          ancestors_path << { node: ancestor, descendant_type: ancestor.descendant_type }
+
+          break true unless ancestor.balanced?
+        else
+          break false
+        end
+      end
+
+      if found_unbalanced_node
+        if ancestors_path.size >= 3
+          unbalanced_node = ancestors_path[-1]                  # z
+          unbalanced_node_child = ancestors_path[-2]            # y
+          unbalanced_node_grand_child = ancestors_path[-3]      # x
+
+          case [unbalanced_node_child[:descendant_type], unbalanced_node_grand_child[:descendant_type]]
+            when [:left, :left]
+              unbalanced_node[:node].rotate :right
+            when [:left, :right]
+              unbalanced_node_child[:node].rotate :left
+              unbalanced_node[:node].rotate :right
+            when [:right, :right]
+              unbalanced_node[:node].rotate :left
+            when [:right, :left]
+              unbalanced_node_child[:node].rotate :right
+              unbalanced_node[:node].rotate :left
+          end
+        else
+          raise "Unbalanced node found with value #{ancestors_path[-1][:node].value} but ancestors path size is #{ancestors_path.size}"
+        end
+      end
+    end
+  end
+end
+
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
 
 def reorder_by_collecting_middle_element(items)
@@ -248,12 +335,19 @@ def reorder_by_collecting_middle_element(items)
 end
 
 # items = reorder_by_collecting_middle_element((1..(2 ** 6 - 1)).to_a)
-items = (1..(2**5 - 1)).to_a.shuffle
+items = (1..(2**6 - 1)).to_a.shuffle
 
-@root = BST.new(items.shift)
+p items
+
+@root = AvlTree.new(items.shift)
 
 items.each do |item|
-  @root.add_child item
+  @root.add_avl_child item
+
+  # Chech if root has changed and update it, if applicable.
+  if @root != (new_root = @root.top_root)
+    @root = new_root
+  end
 end
 
 ap @root.as_text
@@ -265,7 +359,7 @@ puts
 puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
 puts "Height: #{@root.height}"
 puts
-p @root.in_order
+p @root.in_order &:value
 p @root.as_graphviz
 
 `open tree.png`
