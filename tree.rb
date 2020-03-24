@@ -284,8 +284,8 @@ class AvlTree < BST
     end
   end
 
-  def add_avl_child(child_value)
-    add_child(child_value).tap do |new_child|                   # w
+  def add_child(child_value)
+    super.tap do |new_child|                                    # w
       ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
 
       found_unbalanced_node = loop do
@@ -342,7 +342,7 @@ p items
 @root = AvlTree.new(items.shift)
 
 items.each do |item|
-  @root.add_avl_child item
+  @root.add_child item
 
   # Chech if root has changed and update it, if applicable.
   if @root != (new_root = @root.top_root)
