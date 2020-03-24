@@ -6,8 +6,8 @@ class Tree
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
 
-  attr_accessor :value, :parent
-  attr_reader :left, :right
+  attr_accessor :value
+  attr_reader :left, :right, :parent
 
   def initialize(value, left: nil, right: nil)
     @value = value
@@ -32,6 +32,10 @@ class Tree
     !left && !right
   end
 
+  def balanced?
+    ((left&.height || 0) - (right&.height || 0)).abs <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+  end
+
   def height
     1 + [left&.height || 0, right&.height || 0].max
   end
@@ -40,16 +44,16 @@ class Tree
     1 + (left&.count || 0) + (right&.count || 0)
   end
 
-  def pre_order
-    [value] + (left&.pre_order || []) + (right&.pre_order || [])
+  def pre_order(&block)
+    [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
   end
 
-  def in_order
-    (left&.in_order || []) + [value] + (right&.in_order || [])
+  def in_order(&block)
+    (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
   end
 
-  def post_order
-    (left&.post_order || []) + (right&.post_order || []) + [value]
+  def post_order(&block)
+    (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
   end
 
   def as_text
@@ -128,6 +132,8 @@ class Tree
   end
 
   protected
+
+  attr_writer :parent
 
   def draw_tree(canvas, range, level, type = nil)
     canvas.tap do
@@ -228,8 +234,7 @@ class BST < Tree
     left&.min || value
   end
 
-  # Change both left and right setters to private.
-  protected :left=, :right=
+  protected :left=, :right=, :value=
 end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
