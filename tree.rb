@@ -6,12 +6,26 @@ class Tree
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
 
-  attr_accessor :value, :left, :right
+  attr_accessor :value, :parent
+  attr_reader :left, :right
 
   def initialize(value, left: nil, right: nil)
     @value = value
     @left = left
     @right = right
+
+    left&.parent = self
+    right&.parent = self
+  end
+
+  def left=(new_left)
+    @left = new_left
+    left&.parent = self
+  end
+
+  def right=(new_right)
+    @right = new_right
+    right&.parent = self
   end
 
   def leaf?
