@@ -3,6 +3,7 @@ require 'ruby-graphviz'
 require 'securerandom'
 
 class Tree
+  DEBUG = true
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
 
@@ -267,11 +268,11 @@ class AvlTree < BST
   attr_accessor :ancestors_checked
 
   def add_child(child_value)
-    puts "Adding #{child_value} to sub-tree #{value}"
+    puts "Adding #{child_value} to sub-tree #{value}" if DEBUG
 
     super.tap do |new_child|                                    # w
       unless new_child.ancestors_checked
-        puts "Checking ancestors path after adding #{child_value} to sub-tree #{value}"
+        puts "Checking ancestors path after adding #{child_value} to sub-tree #{value}" if DEBUG
 
         ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
 
@@ -291,7 +292,7 @@ class AvlTree < BST
             unbalanced_node_child = ancestors_path[-2]            # y
             unbalanced_node_grand_child = ancestors_path[-3]      # x
 
-            puts "Unbalanced node found with value #{unbalanced_node[:node].value}"
+            puts "Unbalanced node found with value #{unbalanced_node[:node].value}" if DEBUG
 
             case [unbalanced_node_child[:descendant_type], unbalanced_node_grand_child[:descendant_type]]
               when [:left, :left]
@@ -309,7 +310,7 @@ class AvlTree < BST
             raise "Unbalanced node found with value #{ancestors_path[-1][:node].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
           end
         else
-          puts "No unbalanced nodes found!"
+          puts "No unbalanced nodes found!" if DEBUG
         end
 
         new_child.ancestors_checked = true
@@ -332,7 +333,7 @@ class AvlTree < BST
   end
 
   def rotate(direction)
-    puts "Rotating #{direction} node #{value}..."
+    puts "Rotating #{direction} node #{value}..." if DEBUG
 
     previous_parent = parent
 
