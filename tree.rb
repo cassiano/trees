@@ -137,6 +137,17 @@ class Tree
     end
   end
 
+  #                                                                             24
+  #                                      ┌──────────────────────────────────────┴──────────────────────────────────────┐
+  #                                      10                                                                            47
+  #                  ┌───────────────────┴──────────────────┐                                      ┌───────────────────┴───────────────────┐
+  #                  6                                      17                                     37                                      55
+  #        ┌─────────┴─────────┐                  ┌─────────┴─────────┐                  ┌─────────┴─────────┐                   ┌─────────┴─────────┐
+  #        3                   8                  14                  20                 31                  42                  50                  60
+  #   ┌────┴────┐         ┌────┴────┐        ┌────┴────┐         ┌────┴────┐        ┌────┴────┐         ┌────┴────┐         ┌────┴────┐         ┌────┴────┐
+  #   2         4         7         9        12        15        19        22       27        33        39        45        49        53        57        62
+  # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
+  # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
   def as_graphviz
     g = GraphViz.new(:G, type: :digraph)
 
@@ -253,38 +264,9 @@ end
 
 # https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
 class AvlTree < BST
-  def replace_parent(previous_root, previous_root_parent = previous_root.parent)
-    if previous_root_parent
-      if previous_root_parent.left == previous_root
-        previous_root_parent.left = self
-      elsif previous_root_parent.right == previous_root
-        previous_root_parent.right = self
-      end
-    else
-      self.parent = nil
-    end
-  end
-
-  def rotate(direction)                                         # (x = self if direction == :left or y = self if direction == :right)
-    puts "Rotating node #{value} to the #{direction}..."
-
-    previous_parent = parent
-
-    case direction
-      when :left
-        previous_right = right                                  # y
-        self.right = previous_right.left                        # T2
-        previous_right.left = self                              # x
-        previous_right.replace_parent self, previous_parent
-      when :right
-        previous_left = left                                    # x
-        self.left = previous_left.right                         # T2
-        previous_left.right = self                              # y
-        previous_left.replace_parent self, previous_parent
-    end
-  end
-
   def add_child(child_value)
+    puts "Adding #{child_value} to sub-tree #{value}"
+
     super.tap do |new_child|                                    # w
       ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
 
@@ -317,9 +299,42 @@ class AvlTree < BST
               unbalanced_node[:node].rotate :left
           end
         else
-          raise "Unbalanced node found with value #{ancestors_path[-1][:node].value} but ancestors path size is #{ancestors_path.size}"
+          raise "Unbalanced node found with value #{ancestors_path[-1][:node].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
         end
       end
+    end
+  end
+
+  protected
+
+  def replace_parent(previous_root, previous_root_parent)
+    if previous_root_parent
+      if previous_root_parent.left == previous_root
+        previous_root_parent.left = self
+      elsif previous_root_parent.right == previous_root
+        previous_root_parent.right = self
+      end
+    else
+      self.parent = nil
+    end
+  end
+
+  def rotate(direction)
+    puts "Rotating #{direction} node #{value}..."
+
+    previous_parent = parent
+
+    case direction
+      when :left
+        previous_right = right                                  # y
+        self.right = previous_right.left                        # T2
+        previous_right.left = self                              # x
+        previous_right.replace_parent self, previous_parent     # New root
+      when :right
+        previous_left = left                                    # x
+        self.left = previous_left.right                         # T2
+        previous_left.right = self                              # y
+        previous_left.replace_parent self, previous_parent      # New root
     end
   end
 end
@@ -334,7 +349,7 @@ def reorder_by_collecting_middle_element(items)
   ([items[middle_index]] + reorder_by_collecting_middle_element(items[0..middle_index-1]) + reorder_by_collecting_middle_element(items[middle_index+1..-1]))
 end
 
-# items = reorder_by_collecting_middle_element((1..(2 ** 6 - 1)).to_a)
+# items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
 items = (1..(2**6 - 1)).to_a.shuffle
 
 p items
@@ -348,6 +363,8 @@ items.each do |item|
   if @root != (new_root = @root.top_root)
     @root = new_root
   end
+
+  raise "Tree became unbalanced after adding node #{item}!" unless @root.pre_order.all?(&:balanced?)
 end
 
 ap @root.as_text
