@@ -355,13 +355,13 @@ end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
 
-def reorder_by_collecting_middle_element(items)
-  return items if items.size <= 2
-
-  middle_index = items.size / 2
-
-  ([items[middle_index]] + reorder_by_collecting_middle_element(items[0..middle_index-1]) + reorder_by_collecting_middle_element(items[middle_index+1..-1]))
-end
+# def reorder_by_collecting_middle_element(items)
+#   return items if items.size <= 2
+#
+#   middle_index = items.size / 2
+#
+#   ([items[middle_index]] + reorder_by_collecting_middle_element(items[0..middle_index-1]) + reorder_by_collecting_middle_element(items[middle_index+1..-1]))
+# end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
 items = (1..(2**6 - 1)).to_a.shuffle
@@ -378,7 +378,7 @@ items.each do |item|
     @root = new_root
   end
 
-  raise "Tree became unbalanced after adding node #{item}!" unless @root.pre_order.all?(&:balanced?)
+  raise "Tree became unbalanced after adding node #{item}!" unless @root.balanced?
 end
 
 ap @root.as_text
