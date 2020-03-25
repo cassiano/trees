@@ -264,43 +264,55 @@ end
 
 # https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
 class AvlTree < BST
+  attr_accessor :ancestors_checked
+
   def add_child(child_value)
     puts "Adding #{child_value} to sub-tree #{value}"
 
     super.tap do |new_child|                                    # w
-      ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
+      unless new_child.ancestors_checked
+        puts "Checking ancestors path after adding #{child_value} to sub-tree #{value}"
 
-      found_unbalanced_node = loop do
-        if (ancestor = ancestors_path.last[:node].parent)
-          ancestors_path << { node: ancestor, descendant_type: ancestor.descendant_type }
+        ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
 
-          break true unless ancestor.balanced?
-        else
-          break false
+        found_unbalanced_node = loop do
+          if (ancestor = ancestors_path.last[:node].parent)
+            ancestors_path << { node: ancestor, descendant_type: ancestor.descendant_type }
+
+            break true unless ancestor.balanced?
+          else
+            break false
+          end
         end
-      end
 
-      if found_unbalanced_node
-        if ancestors_path.size >= 3
-          unbalanced_node = ancestors_path[-1]                  # z
-          unbalanced_node_child = ancestors_path[-2]            # y
-          unbalanced_node_grand_child = ancestors_path[-3]      # x
+        if found_unbalanced_node
+          if ancestors_path.size >= 3
+            unbalanced_node = ancestors_path[-1]                  # z
+            unbalanced_node_child = ancestors_path[-2]            # y
+            unbalanced_node_grand_child = ancestors_path[-3]      # x
 
-          case [unbalanced_node_child[:descendant_type], unbalanced_node_grand_child[:descendant_type]]
-            when [:left, :left]
-              unbalanced_node[:node].rotate :right
-            when [:left, :right]
-              unbalanced_node_child[:node].rotate :left
-              unbalanced_node[:node].rotate :right
-            when [:right, :right]
-              unbalanced_node[:node].rotate :left
-            when [:right, :left]
-              unbalanced_node_child[:node].rotate :right
-              unbalanced_node[:node].rotate :left
+            puts "Unbalanced node found with value #{unbalanced_node[:node].value}"
+
+            case [unbalanced_node_child[:descendant_type], unbalanced_node_grand_child[:descendant_type]]
+              when [:left, :left]
+                unbalanced_node[:node].rotate :right
+              when [:left, :right]
+                unbalanced_node_child[:node].rotate :left
+                unbalanced_node[:node].rotate :right
+              when [:right, :right]
+                unbalanced_node[:node].rotate :left
+              when [:right, :left]
+                unbalanced_node_child[:node].rotate :right
+                unbalanced_node[:node].rotate :left
+            end
+          else
+            raise "Unbalanced node found with value #{ancestors_path[-1][:node].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
           end
         else
-          raise "Unbalanced node found with value #{ancestors_path[-1][:node].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
+          puts "No unbalanced nodes found!"
         end
+
+        new_child.ancestors_checked = true
       end
     end
   end
