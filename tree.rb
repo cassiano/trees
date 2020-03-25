@@ -37,10 +37,6 @@ class Tree
     parent&.top_root || self
   end
 
-  def balanced?
-    ((left&.height || 0) - (right&.height || 0)).abs <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
-  end
-
   def descendant_type
     if parent
       if parent.left == self
@@ -316,6 +312,11 @@ class AvlTree < BST
         new_child.ancestors_checked = true
       end
     end
+  end
+
+  # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
+  def balanced?
+    ((left&.height || 0) - (right&.height || 0)).abs <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
   end
 
   protected
