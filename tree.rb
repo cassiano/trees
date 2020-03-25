@@ -126,14 +126,6 @@ class Tree
   #   canvas
   # end
 
-  def as_tree_gui(width:)
-    return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
-
-    (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
-      draw_tree canvas, 0..(width - 1), 1
-    end
-  end
-
   #                                                                             24
   #                                      ┌──────────────────────────────────────┴──────────────────────────────────────┐
   #                                      10                                                                            47
@@ -145,6 +137,14 @@ class Tree
   #   2         4         7         9        12        15        19        22       27        33        39        45        49        53        57        62
   # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
   # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
+  def as_tree_gui(width:)
+    return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
+
+    (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
+      draw_tree canvas, 0..(width - 1), 1
+    end
+  end
+
   def as_graphviz
     g = GraphViz.new(:G, type: :digraph)
 
