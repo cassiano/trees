@@ -269,7 +269,6 @@ class BST < Tree
   protected :left=, :right=, :value=
 end
 
-# https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
 class AvlTree < BST
   attr_accessor :ancestors_checked
 
@@ -331,24 +330,36 @@ class AvlTree < BST
 
   protected
 
+
+  # T1, T2 and T3 are subtrees of the tree rooted with y (on the left side) or x (on the right side).
+  #
+  #      y                           x
+  #     / \     Right Rotation      / \
+  #    x   T3   - - - - - - - >   T1   y
+  #   / \       < - - - - - - -       / \
+  # T1   T2     Left Rotation       T2  T3
+  #
+  # Source: https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
   def rotate(direction)
-    puts "Rotating #{direction} node #{value}..." if DEBUG
+    puts "Rotating node #{value} to the #{direction}..." if DEBUG
 
     previous_parent = parent
 
     case direction
-      when :left
-        previous_right = right                                  # y
-        previous_root_clone = clone                             # x
-        previous_root_clone.right = previous_right.left         # T2
-        previous_right.left = previous_root_clone
-        copy_from previous_right                                # New root
-      when :right
-        previous_left = left                                    # x
-        previous_root_clone = clone                             # y
-        previous_root_clone.left = previous_left.right          # T2
-        previous_left.right = previous_root_clone
-        copy_from previous_left                                 # New root
+      when :left          # x = self (current root)
+        y = right
+        x_clone = clone
+        t2 = y.left
+        x_clone.right = t2
+        y.left = x_clone
+        copy_from y       # Original x get all y's data, in practice making y the new root
+      when :right         # y = self (current root)
+        x = left
+        y_clone = clone
+        t2 = x.right
+        y_clone.left = t2
+        x.right = y_clone
+        copy_from x       # Original y get all x's data, in practice making x the new root
     end
   end
 end
