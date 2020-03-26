@@ -19,6 +19,16 @@ class Tree
     right&.parent = self
   end
 
+  def clone
+    self.class.new value, left: left, right: right
+  end
+
+  def copy_from(another_node)
+    self.value = another_node.value
+    self.left = another_node.left
+    self.right = another_node.right
+  end
+
   def left=(new_left)
     @left = new_left
     left&.parent = self
@@ -218,20 +228,20 @@ class Tree
 end
 
 class BST < Tree
-  def add_child(child_value)
-    if child_value <= value
+  def add_node(node_value)
+    if node_value <= value
       if left
-        left.add_child child_value
+        left.add_node node_value
       else
-        self.class.new(child_value).tap do |new_child|
+        self.class.new(node_value).tap do |new_child|
           self.left = new_child
         end
       end
     else
       if right
-        right.add_child child_value
+        right.add_node node_value
       else
-        self.class.new(child_value).tap do |new_child|
+        self.class.new(node_value).tap do |new_child|
           self.right = new_child
         end
       end
@@ -263,12 +273,12 @@ end
 class AvlTree < BST
   attr_accessor :ancestors_checked
 
-  def add_child(child_value)
-    puts "Adding #{child_value} to sub-tree #{value}" if DEBUG
+  def add_node(node_value)
+    puts "Adding #{node_value} to sub-tree #{value}" if DEBUG
 
     super.tap do |new_child|                                    # w
       unless new_child.ancestors_checked
-        puts "Checking ancestors path after adding #{child_value} to sub-tree #{value}" if DEBUG
+        puts "Checking ancestors path after adding #{node_value} to sub-tree #{value}" if DEBUG
 
         ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
 
@@ -321,18 +331,6 @@ class AvlTree < BST
 
   protected
 
-  def replace_parent(previous_root, previous_root_parent)
-    if previous_root_parent
-      if previous_root_parent.left == previous_root
-        previous_root_parent.left = self
-      elsif previous_root_parent.right == previous_root
-        previous_root_parent.right = self
-      end
-    else
-      self.parent = nil
-    end
-  end
-
   def rotate(direction)
     puts "Rotating #{direction} node #{value}..." if DEBUG
 
@@ -341,14 +339,16 @@ class AvlTree < BST
     case direction
       when :left
         previous_right = right                                  # y
-        self.right = previous_right.left                        # T2
-        previous_right.left = self                              # x
-        previous_right.replace_parent self, previous_parent     # New root
+        previous_root_clone = clone                             # x
+        previous_root_clone.right = previous_right.left         # T2
+        previous_right.left = previous_root_clone
+        copy_from previous_right                                # New root
       when :right
         previous_left = left                                    # x
-        self.left = previous_left.right                         # T2
-        previous_left.right = self                              # y
-        previous_left.replace_parent self, previous_parent      # New root
+        previous_root_clone = clone                             # y
+        previous_root_clone.left = previous_left.right          # T2
+        previous_left.right = previous_root_clone
+        copy_from previous_left                                 # New root
     end
   end
 end
@@ -371,12 +371,7 @@ p items
 @root = AvlTree.new(items.shift)
 
 items.each do |item|
-  @root.add_child item
-
-  # Chech if root has changed and update it, if applicable.
-  if @root != (new_root = @root.top_root)
-    @root = new_root
-  end
+  @root.add_node item
 
   raise "Tree became unbalanced after adding node #{item}!" unless @root.balanced?
 end
