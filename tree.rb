@@ -3,6 +3,9 @@ require 'ruby-graphviz'
 require 'securerandom'
 
 class Tree
+  class EmptyTreeError < StandardError
+  end
+
   DEBUG = true
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
@@ -23,7 +26,7 @@ class Tree
     self.class.new value, left: left, right: right
   end
 
-  def copy_from(another_node)
+  def copy_attrs_from(another_node)
     self.value = another_node.value
     self.left = another_node.left
     self.right = another_node.right
@@ -41,6 +44,10 @@ class Tree
 
   def leaf?
     !left && !right
+  end
+
+  def orphan?
+    !parent
   end
 
   def top_root
@@ -75,6 +82,14 @@ class Tree
 
   def post_order(&block)
     (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
+  end
+
+  def leftmost_node
+    left&.leftmost_node || self
+  end
+
+  def rightmost_node
+    right&.rightmost_node || self
   end
 
   def as_text
@@ -248,6 +263,40 @@ class BST < Tree
     end
   end
 
+  def delete(node_or_value)
+    node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value)
+
+    return false unless node
+
+    # Has both children?
+    if node.left && node.right
+      # Find the left child's rightmost node. PS: finding the right child's leftmost node would also work.
+      rightmost = node.left.rightmost_node
+
+      # Replace the node to be deleted's value by the left child's rightmost node value.
+      rightmost.value.tap do |rightmost_value|
+        delete rightmost
+        node.value = rightmost_value
+      end
+
+      # Alternative:
+      #
+      # rightmost.parent.send "#{rightmost.descendant_type}=", rightmost.left
+      # node.value = rightmost.value
+    else
+      # Has at least 1 child?
+      if (child = node.left || node.right)
+        node.copy_attrs_from child
+      elsif !node.orphan?
+        node.parent.send "#{node.descendant_type}=", nil    # Delete leaf node.
+      else
+        raise EmptyTreeError    # Main leaf root deleted.
+      end
+    end
+
+    true
+  end
+
   def search(searched_value)
     if searched_value == value
       self
@@ -330,37 +379,41 @@ class AvlTree < BST
 
   protected
 
-
   # T1, T2 and T3 are subtrees of the tree rooted with y (on the left side) or x (on the right side).
   #
-  #      y                           x
-  #     / \     Right Rotation      / \
-  #    x   T3   - - - - - - - >   T1   y
-  #   / \       < - - - - - - -       / \
+  #      y      Right Rotation       x
+  #     / \        ------->         / \
+  #    x   T3                     T1   y
+  #   / \          <-------           / \
   # T1   T2     Left Rotation       T2  T3
   #
   # Source: https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
   def rotate(direction)
     puts "Rotating node #{value} to the #{direction}..." if DEBUG
+    puts "Before:" if DEBUG
+    puts as_tree_gui(width: 158) if DEBUG
 
     previous_parent = parent
 
     case direction
-      when :left          # x = self (current root)
+      when :left                # x = self (current root)
         y = right
         x_clone = clone
         t2 = y.left
         x_clone.right = t2
         y.left = x_clone
-        copy_from y       # Original x get all y's data, in practice making y the new root
-      when :right         # y = self (current root)
+        copy_attrs_from y       # Original x get all y's data, in practice making y the new root
+      when :right               # y = self (current root)
         x = left
         y_clone = clone
         t2 = x.right
         y_clone.left = t2
         x.right = y_clone
-        copy_from x       # Original y get all x's data, in practice making x the new root
+        copy_attrs_from x       # Original y get all x's data, in practice making x the new root
     end
+
+    puts "after:" if DEBUG
+    puts as_tree_gui(width: 158) if DEBUG
   end
 end
 
@@ -387,16 +440,14 @@ items.each do |item|
   raise "Tree became unbalanced after adding node #{item}!" unless @root.balanced?
 end
 
-ap @root.as_text
-puts
-puts @root.as_gui
-puts
+# ap @root.as_text
+# puts
+# puts @root.as_gui
+# puts
 puts @root.as_tree_gui(width: 158)
 puts
 puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
 puts "Height: #{@root.height}"
 puts
 p @root.in_order &:value
-p @root.as_graphviz
-
-`open tree.png`
+p @root.as_graphviz; `open tree.png`
