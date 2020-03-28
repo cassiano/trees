@@ -54,6 +54,14 @@ class Tree
     parent&.top_root || self
   end
 
+  def larger_height_child
+    if (left&.height || 0) >= (right&.height || 0)
+      left
+    else
+      right
+    end
+  end
+
   def descendant_type
     if parent
       if parent.left == self
@@ -90,6 +98,14 @@ class Tree
 
   def rightmost_node
     right&.rightmost_node || self
+  end
+
+  def ancestors
+    if parent
+      [parent] + parent.ancestors
+    else
+      []
+    end
   end
 
   def as_text
@@ -243,10 +259,10 @@ class Tree
 end
 
 class BST < Tree
-  def add_node(node_value)
+  def add(node_value)
     if node_value <= value
       if left
-        left.add_node node_value
+        left.add node_value
       else
         self.class.new(node_value).tap do |new_child|
           self.left = new_child
@@ -254,7 +270,7 @@ class BST < Tree
       end
     else
       if right
-        right.add_node node_value
+        right.add node_value
       else
         self.class.new(node_value).tap do |new_child|
           self.right = new_child
@@ -263,20 +279,19 @@ class BST < Tree
     end
   end
 
+  # https://www.geeksforgeeks.org/binary-search-tree-set-2-delete/
   def delete(node_or_value)
-    node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value)
-
-    return false unless node
+    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
 
     # Has both children?
     if node.left && node.right
-      # Find the left child's rightmost node. PS: finding the right child's leftmost node would also work.
-      rightmost = node.left.rightmost_node
+      # Find the node's inorder successor (its right child's leftmost node). PS: using the inorder predecessor would also work.
+      leftmost = node.right.leftmost_node
 
-      # Replace the node to be deleted's value by the left child's rightmost node value.
-      rightmost.value.tap do |rightmost_value|
-        delete rightmost
-        node.value = rightmost_value
+      # Replace the node to be deleted's value by the right child's leftmost node value.
+      return leftmost.parent.tap do
+        node.value = leftmost.value
+        delete leftmost
       end
 
       # Alternative:
@@ -286,33 +301,33 @@ class BST < Tree
     else
       # Has at least 1 child?
       if (child = node.left || node.right)
-        node.copy_attrs_from child
-      elsif !node.orphan?
-        node.parent.send "#{node.descendant_type}=", nil    # Delete leaf node.
-      else
-        raise EmptyTreeError    # Main leaf root deleted.
+        node.copy_attrs_from child    # Copy the (single) child attributes to it.
+      elsif !node.orphan?   # Leaf node. Node has a parent?
+        node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the main root. Simply nullify its parent left or right subtree.
+      else    # Main (and leaf) root.
+        raise EmptyTreeError
       end
     end
 
-    true
+    node.parent
   end
 
-  def search(searched_value)
-    if searched_value == value
+  def search(node_value)
+    if node_value == value
       self
-    elsif searched_value <= value
-      left&.search searched_value
+    elsif node_value <= value
+      left&.search node_value
     else
-      right&.search searched_value
+      right&.search node_value
     end
   end
 
   def max
-    right&.max || value
+    rightmost_node&.value
   end
 
   def min
-    left&.min || value
+    leftmost_node&.value
   end
 
   protected :left=, :right=, :value=
@@ -321,54 +336,11 @@ end
 class AvlTree < BST
   attr_accessor :ancestors_checked
 
-  def add_node(node_value)
+  def add(node_value)
     puts "Adding #{node_value} to sub-tree #{value}" if DEBUG
 
-    super.tap do |new_child|                                    # w
-      unless new_child.ancestors_checked
-        puts "Checking ancestors path after adding #{node_value} to sub-tree #{value}" if DEBUG
-
-        ancestors_path = [{ node: new_child, descendant_type: new_child.descendant_type }]
-
-        found_unbalanced_node = loop do
-          if (ancestor = ancestors_path.last[:node].parent)
-            ancestors_path << { node: ancestor, descendant_type: ancestor.descendant_type }
-
-            break true unless ancestor.balanced?
-          else
-            break false
-          end
-        end
-
-        if found_unbalanced_node
-          if ancestors_path.size >= 3
-            unbalanced_node = ancestors_path[-1]                  # z
-            unbalanced_node_child = ancestors_path[-2]            # y
-            unbalanced_node_grand_child = ancestors_path[-3]      # x
-
-            puts "Unbalanced node found with value #{unbalanced_node[:node].value}" if DEBUG
-
-            case [unbalanced_node_child[:descendant_type], unbalanced_node_grand_child[:descendant_type]]
-              when [:left, :left]
-                unbalanced_node[:node].rotate :right
-              when [:left, :right]
-                unbalanced_node_child[:node].rotate :left
-                unbalanced_node[:node].rotate :right
-              when [:right, :right]
-                unbalanced_node[:node].rotate :left
-              when [:right, :left]
-                unbalanced_node_child[:node].rotate :right
-                unbalanced_node[:node].rotate :left
-            end
-          else
-            raise "Unbalanced node found with value #{ancestors_path[-1][:node].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
-          end
-        else
-          puts "No unbalanced nodes found!" if DEBUG
-        end
-
-        new_child.ancestors_checked = true
-      end
+    super.tap do |new_child|
+      new_child.rebalance_after_insertion
     end
   end
 
@@ -415,6 +387,59 @@ class AvlTree < BST
     puts "after:" if DEBUG
     puts as_tree_gui(width: 158) if DEBUG
   end
+
+  def unbalanced_ancestors_path
+    ancestors_path = [self]
+
+    found_unbalanced_node = loop do
+      if (ancestor = ancestors_path.last.parent)
+        ancestors_path << ancestor
+
+        break true unless ancestor.balanced?
+      else
+        break false
+      end
+    end
+
+    [found_unbalanced_node, ancestors_path]
+  end
+
+  def rebalance_after_insertion
+    unless ancestors_checked
+      puts "Checking ancestors of #{value} after insert operation" if DEBUG
+
+      found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
+
+      if found_unbalanced_node
+        if ancestors_path.size >= 3
+          z = ancestors_path[-1]
+          y = ancestors_path[-2]
+          x = ancestors_path[-3]
+
+          puts "Unbalanced node found with value #{z.value}" if DEBUG
+
+          case [y.descendant_type, x.descendant_type]
+            when [:left, :left]
+              z.rotate :right
+            when [:left, :right]
+              y.rotate :left
+              z.rotate :right
+            when [:right, :right]
+              z.rotate :left
+            when [:right, :left]
+              y.rotate :right
+              z.rotate :left
+          end
+        else
+          raise "Unbalanced node found with value #{ancestors_path[-1].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
+        end
+      else
+        puts "No unbalanced nodes found!" if DEBUG
+      end
+
+      self.ancestors_checked = true
+    end
+  end
 end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
@@ -435,7 +460,7 @@ p items
 @root = AvlTree.new(items.shift)
 
 items.each do |item|
-  @root.add_node item
+  @root.add item
 
   raise "Tree became unbalanced after adding node #{item}!" unless @root.balanced?
 end
