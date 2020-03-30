@@ -300,10 +300,8 @@ class BST < Tree
       leftmost = node.right.leftmost_node
 
       # Replace the node to be deleted's value by the right child's leftmost node value.
-      return leftmost.parent.tap do
-        node.value = leftmost.value
-        delete leftmost
-      end
+      node.value = leftmost.value
+      delete leftmost
 
       # Alternative:
       #
@@ -319,8 +317,6 @@ class BST < Tree
         raise EmptyTreeError
       end
     end
-
-    node.parent
   end
 
   def search(node_value)
@@ -374,11 +370,18 @@ class AvlTree < BST
   def delete(node_or_value)
     return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
 
-    if (deleted_node_parent = super)
-      deleted_node_parent.ancestors(true).each do |node_to_be_checked|
+    node_parent = node.parent
+
+    super
+
+    if node_parent
+      node_parent.ancestors(true).each do |node_to_be_checked|
         node_to_be_checked.rebalance_after_deletion
       end
     end
+
+    # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
+    # node_parent.ancestors(true).each(&:rebalance_after_deletion) if node_parent
 
     raise "Tree became unbalanced after deleting node #{item}!" unless top_root.balanced?
   end
