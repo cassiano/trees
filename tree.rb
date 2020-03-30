@@ -106,6 +106,10 @@ class Tree
     end
   end
 
+  def deepest_path
+    [self] + (larger_height_child&.deepest_path || [])
+  end
+
   def as_text
     { ✉: value }.tap do |result|
       result.merge! ⬋: left.as_text if left
@@ -397,8 +401,8 @@ class AvlTree < BST
   # Source: https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
   def rotate(direction)
     puts "Rotating node #{value} to the #{direction}..." if DEBUG
-    puts "Before:" if DEBUG
-    puts as_tree_gui(width: 158) if DEBUG
+    # puts "Before:" if DEBUG
+    # puts as_tree_gui(width: 158) if DEBUG
 
     previous_parent = parent
 
@@ -421,8 +425,8 @@ class AvlTree < BST
         copy_attrs_from x       # Original y get all x's data, in practice making x the new root
     end
 
-    puts "after:" if DEBUG
-    puts as_tree_gui(width: 158) if DEBUG
+    # puts "after:" if DEBUG
+    # puts as_tree_gui(width: 158) if DEBUG
   end
 
   def unbalanced_ancestors_path
@@ -540,5 +544,4 @@ puts
 p @root.in_order &:value
 @root.as_graphviz; `open tree.png`
 
-# loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts "Is tree balanced? #{@root.balanced?}"; puts @root.as_tree_gui(width: 158); break if @root.count == 1 || !@root.balanced? }
-# @root.in_order.reject(&:balanced?).map(&:value)
+# loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
