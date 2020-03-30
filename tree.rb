@@ -388,7 +388,11 @@ class AvlTree < BST
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
-    ((left&.height || 0) - (right&.height || 0)).abs <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+    subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+  end
+
+  def subtrees_height_diff
+    ((left&.height || 0) - (right&.height || 0)).abs
   end
 
   protected
