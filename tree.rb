@@ -100,11 +100,9 @@ class Tree
     right&.rightmost_node || self
   end
 
-  def ancestors
-    if parent
-      [parent] + parent.ancestors
-    else
-      []
+  def ancestors(include_current_node = false)
+    [*(include_current_node ? self : nil)].tap do |ancestors_path|
+      ancestors_path.concat parent.ancestors(true) if parent
     end
   end
 
@@ -259,23 +257,32 @@ class Tree
 end
 
 class BST < Tree
+  attr_accessor :comparison_block
+
+  def initialize(*args, &comparison_block)
+    super
+
+    @comparison_block = comparison_block
+  end
+
   def add(node_value)
-    if node_value <= value
-      if left
-        left.add node_value
-      else
-        self.class.new(node_value).tap do |new_child|
-          self.left = new_child
+    case compare(node_value, value)
+      when -1, 0
+        if left
+          left.add node_value
+        else
+          self.class.new(node_value, &comparison_block).tap do |new_child|
+            self.left = new_child
+          end
         end
-      end
-    else
-      if right
-        right.add node_value
-      else
-        self.class.new(node_value).tap do |new_child|
-          self.right = new_child
+      when 1
+        if right
+          right.add node_value
+        else
+          self.class.new(node_value, &comparison_block).tap do |new_child|
+            self.right = new_child
+          end
         end
-      end
     end
   end
 
@@ -313,12 +320,13 @@ class BST < Tree
   end
 
   def search(node_value)
-    if node_value == value
-      self
-    elsif node_value <= value
-      left&.search node_value
-    else
-      right&.search node_value
+    case compare(node_value, value)
+      when 0
+        self
+      when -1
+        left&.search node_value
+      when 1
+        right&.search node_value
     end
   end
 
@@ -330,18 +338,45 @@ class BST < Tree
     leftmost_node&.value
   end
 
-  protected :left=, :right=, :value=
+  def clone
+    super.tap do |cloned_object|
+      cloned_object.comparison_block = comparison_block
+    end
+  end
+
+  protected :left=, :right=, :value=, :comparison_block=
+
+  protected
+
+  def compare(a, b)
+    comparison_block ? comparison_block.call(a, b) : a <=> b
+  end
 end
 
 class AvlTree < BST
-  attr_accessor :ancestors_checked
+  attr_accessor :ancestors_checked_after_insertion
 
   def add(node_value)
     puts "Adding #{node_value} to sub-tree #{value}" if DEBUG
 
     super.tap do |new_child|
       new_child.rebalance_after_insertion
+
+      raise "Tree became unbalanced after adding node #{item}!" unless top_root.balanced?
     end
+  end
+
+  # https://www.geeksforgeeks.org/avl-tree-set-2-deletion/
+  def delete(node_or_value)
+    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
+
+    if (deleted_node_parent = super)
+      deleted_node_parent.ancestors(true).each do |node_to_be_checked|
+        node_to_be_checked.rebalance_after_deletion
+      end
+    end
+
+    raise "Tree became unbalanced after deleting node #{item}!" unless top_root.balanced?
   end
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
@@ -376,6 +411,8 @@ class AvlTree < BST
         y.left = x_clone
         copy_attrs_from y       # Original x get all y's data, in practice making y the new root
       when :right               # y = self (current root)
+        raise "Invalid condition found for right rotation. Current node (#{value}) must be necessarily greater than left node (#{left.value})" if compare(value, left.value) != 1
+
         x = left
         y_clone = clone
         t2 = x.right
@@ -389,26 +426,18 @@ class AvlTree < BST
   end
 
   def unbalanced_ancestors_path
-    ancestors_path = [self]
+    all_ancestors = ancestors(true)
 
-    found_unbalanced_node = loop do
-      if (ancestor = ancestors_path.last.parent)
-        ancestors_path << ancestor
+    first_unbalanced_ancestor = all_ancestors.index { |node| !node.balanced? }
 
-        break true unless ancestor.balanced?
-      else
-        break false
-      end
-    end
-
-    [found_unbalanced_node, ancestors_path]
+    [!!first_unbalanced_ancestor, all_ancestors[0..first_unbalanced_ancestor]]
   end
 
   def rebalance_after_insertion
-    unless ancestors_checked
-      puts "Checking ancestors of #{value} after insert operation" if DEBUG
+    unless ancestors_checked_after_insertion
+      puts "Rebalancing node #{value} after insert operation" if DEBUG
 
-      found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
+      found_unbalanced_node,ancestors_path = unbalanced_ancestors_path
 
       if found_unbalanced_node
         if ancestors_path.size >= 3
@@ -437,7 +466,45 @@ class AvlTree < BST
         puts "No unbalanced nodes found!" if DEBUG
       end
 
-      self.ancestors_checked = true
+      self.ancestors_checked_after_insertion = true
+    end
+  end
+
+  def rebalance_after_deletion
+    puts "Rebalancing node #{value} after delete operation" if DEBUG
+
+    found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
+
+    if found_unbalanced_node
+      z = ancestors_path[-1]
+
+      puts "Unbalanced node found with value #{z.value}" if DEBUG
+
+      if z.height >= 3
+        y = z.larger_height_child
+        x = y.larger_height_child
+
+        case [y.descendant_type, x.descendant_type]
+          when [:left, :left]
+            z.rotate :right
+          when [:left, :right]
+            y.rotate :left
+            y.rebalance_after_deletion unless y.balanced?
+            z.rotate :right
+          when [:right, :right]
+            z.rotate :left
+          when [:right, :left]
+            y.rotate :right
+            y.rebalance_after_deletion unless y.balanced?
+            z.rotate :left
+        end
+
+        z.rebalance_after_deletion unless z.balanced?
+      else
+        raise "Unbalanced node found with value #{ancestors_path[-1].value}, but its height < 3 (#{z.height})"
+      end
+    else
+      puts "No unbalanced nodes found!" if DEBUG
     end
   end
 end
@@ -459,11 +526,7 @@ p items
 
 @root = AvlTree.new(items.shift)
 
-items.each do |item|
-  @root.add item
-
-  raise "Tree became unbalanced after adding node #{item}!" unless @root.balanced?
-end
+items.each { |item| @root.add item }
 
 # ap @root.as_text
 # puts
@@ -475,4 +538,7 @@ puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
 puts "Height: #{@root.height}"
 puts
 p @root.in_order &:value
-p @root.as_graphviz; `open tree.png`
+@root.as_graphviz; `open tree.png`
+
+# loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts "Is tree balanced? #{@root.balanced?}"; puts @root.as_tree_gui(width: 158); break if @root.count == 1 || !@root.balanced? }
+# @root.in_order.reject(&:balanced?).map(&:value)
