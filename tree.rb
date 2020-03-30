@@ -362,7 +362,7 @@ class AvlTree < BST
     super.tap do |new_child|
       new_child.rebalance_after_insertion
 
-      raise "Tree became unbalanced after adding node #{item}!" unless top_root.balanced?
+      raise "Tree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
     end
   end
 
@@ -383,7 +383,7 @@ class AvlTree < BST
     # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
     # node_parent.ancestors(true).each(&:rebalance_after_deletion) if node_parent
 
-    raise "Tree became unbalanced after deleting node #{item}!" unless top_root.balanced?
+    raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
   end
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
