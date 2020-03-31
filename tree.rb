@@ -14,12 +14,9 @@ class Tree
   attr_reader :left, :right, :parent
 
   def initialize(value, left: nil, right: nil)
-    @value = value
-    @left = left
-    @right = right
-
-    left&.parent = self
-    right&.parent = self
+    self.value = value
+    self.left = left
+    self.right = right
   end
 
   def clone
