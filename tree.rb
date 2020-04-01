@@ -18,7 +18,7 @@ class Tree
     self.left = left
     self.right = right
 
-    clear_cache
+    @cache = {}
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
@@ -122,7 +122,9 @@ class Tree
   end
 
   def leftmost_node
-    left&.leftmost_node || self
+    read_or_insert_in_cache :leftmost_node do
+      left&.leftmost_node || self
+    end
   end
 
   def rightmost_node
@@ -393,22 +395,28 @@ class BST < Tree
   end
 
   def search(node_value)
-    case compare(node_value, value)
-      when 0
-        self
-      when -1
-        left&.search node_value
-      when 1
-        right&.search node_value
+    read_or_insert_in_cache :search, node_value do
+      case compare(node_value, value)
+        when 0
+          self
+        when -1
+          left&.search node_value
+        when 1
+          right&.search node_value
+      end
     end
   end
 
   def max
-    rightmost_node&.value
+    read_or_insert_in_cache :max do
+      rightmost_node&.value
+    end
   end
 
   def min
-    leftmost_node&.value
+    read_or_insert_in_cache :min do
+      leftmost_node&.value
+    end
   end
 
   def clone
@@ -461,7 +469,9 @@ class AvlTree < BST
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
-    subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+    read_or_insert_in_cache :balanced do
+      subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+    end
   end
 
   def subtrees_height_diff
