@@ -185,12 +185,13 @@ class Tree
     end
   end
 
-  def as_graphviz
+  def as_graphviz(image_file = 'tree.png')
     g = GraphViz.new(:G, type: :digraph)
 
     draw_graph_tree g, g.add_nodes(SecureRandom.uuid, label: value.to_s, shape: leaf? ? :doublecircle : :circle)
 
-    g.output png: 'tree.png'
+    g.output png: image_file
+  end
   end
 
   protected
@@ -411,22 +412,24 @@ class AvlTree < BST
     previous_parent = parent
 
     case direction
-      when :left                # x = self (current root)
-        y = right
-        x_clone = clone
+      when :left
+        x = self                  # x = self (current root)
+        y = x.right
+        x_clone = x.clone
         t2 = y.left
         x_clone.right = t2
         y.left = x_clone
-        copy_attrs_from y       # Original x get all y's data, in practice making y the new root
-      when :right               # y = self (current root)
+        x.copy_attrs_from y       # Original x get all y's data, in practice making y the new root
+      when :right
         raise "Invalid condition found for right rotation. Current node (#{value}) must be necessarily greater than left node (#{left.value})" if compare(value, left.value) != 1
 
-        x = left
-        y_clone = clone
+        y = self                  # y = self (current root)
+        x = y.left
+        y_clone = y.clone
         t2 = x.right
         y_clone.left = t2
         x.right = y_clone
-        copy_attrs_from x       # Original y get all x's data, in practice making x the new root
+        y.copy_attrs_from x       # Original y get all x's data, in practice making x the new root
     end
 
     # puts "after:" if DEBUG
