@@ -544,7 +544,7 @@ end
 # end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2**10 - 1)).to_a.shuffle
+items = (1..(2**6 - 1)).to_a.shuffle
 
 p items
 
