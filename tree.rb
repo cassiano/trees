@@ -35,16 +35,22 @@ class Tree
     # Detach the current left node, if any, from its previous parent.
     left&.parent = nil
 
+    # Detach the new left node, if any, from its previous parent.
+    new_left&.parent&.send "#{new_left.descendant_type}=", nil
+
     @left = new_left
-    left&.parent = self
+    new_left&.parent = self
   end
 
   def right=(new_right)
     # Detach the current right node, if any, from its previous parent.
     right&.parent = nil
 
+    # Detach the new right node, if any, from its previous parent.
+    new_right&.parent&.send "#{new_right.descendant_type}=", nil
+
     @right = new_right
-    right&.parent = self
+    new_right&.parent = self
   end
 
   def leaf?
@@ -538,7 +544,7 @@ end
 # end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2**8 - 1)).to_a.shuffle
+items = (1..(2**10 - 1)).to_a.shuffle
 
 p items
 
