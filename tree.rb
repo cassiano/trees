@@ -315,7 +315,6 @@ class Tree
 
         sub_tree.draw_graph_tree g, current_node
       elsif !leaf?
-        # g.add_edges root_node, g.add_nodes(SecureRandom.uuid, label: ' ' * 5, shape: :none), style: :invis
         g.add_edges root_node, g.add_nodes(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
       end
     end
@@ -625,7 +624,7 @@ end
 # end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2**11 - 1)).to_a.shuffle
+items = (1..(2**6 - 1)).to_a.shuffle
 
 p items
 
