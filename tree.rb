@@ -19,10 +19,12 @@ class Tree
     self.right = right
   end
 
+  # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
     self.class.new value, left: left, right: right
   end
 
+  # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
   def copy_attrs_from(another_node)
     self.value = another_node.value
     self.left = another_node.left
@@ -30,13 +32,25 @@ class Tree
   end
 
   def left=(new_left)
+    # Detach the current left node, if any, from its previous parent.
+    left&.parent = nil
+
+    # Detach the new left node, if any, from its previous parent.
+    new_left&.parent&.send "#{new_left.descendant_type}=", nil
+
     @left = new_left
-    left&.parent = self
+    new_left&.parent = self
   end
 
   def right=(new_right)
+    # Detach the current right node, if any, from its previous parent.
+    right&.parent = nil
+
+    # Detach the new right node, if any, from its previous parent.
+    new_right&.parent&.send "#{new_right.descendant_type}=", nil
+
     @right = new_right
-    right&.parent = self
+    new_right&.parent = self
   end
 
   def leaf?
