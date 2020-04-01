@@ -192,7 +192,6 @@ class Tree
 
     g.output png: image_file
   end
-  end
 
   protected
 
