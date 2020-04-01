@@ -114,21 +114,15 @@ class Tree
   end
 
   def in_order(&block)
-    read_or_insert_in_cache :in_order, block do
-      (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
-    end
+    (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
   end
 
   def post_order(&block)
-    read_or_insert_in_cache :post_order, block do
-      (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
-    end
+    (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
   end
 
   def leftmost_node
-    read_or_insert_in_cache :leftmost_node do
-      left&.leftmost_node || self
-    end
+    left&.leftmost_node || self
   end
 
   def rightmost_node
