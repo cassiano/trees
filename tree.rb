@@ -144,9 +144,11 @@ class Tree
   end
 
   def as_text
-    { ✉: value }.tap do |result|
-      result.merge! ⬋: left.as_text if left
-      result.merge! ⬊: right.as_text if right
+    read_or_insert_in_cache :as_text do
+      { ✉: value }.tap do |result|
+        result.merge! ⬋: left.as_text if left
+        result.merge! ⬊: right.as_text if right
+      end
     end
   end
 
