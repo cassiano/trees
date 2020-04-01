@@ -11,17 +11,21 @@ class Tree
   GUI_INDENT_SIZE = 1
 
   attr_accessor :value
-  attr_reader :left, :right, :parent
+  attr_reader :left, :right, :parent, :cache
 
   def initialize(value, left: nil, right: nil)
     self.value = value
     self.left = left
     self.right = right
+
+    clear_cache
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
-    self.class.new value, left: left, right: right
+    self.class.new(value, left: left, right: right).tap do
+      clear_ancestors_caches
+    end
   end
 
   # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
@@ -29,6 +33,8 @@ class Tree
     self.value = another_node.value
     self.left = another_node.left
     self.right = another_node.right
+
+    clear_ancestors_caches
   end
 
   def left=(new_left)
@@ -40,6 +46,8 @@ class Tree
 
     @left = new_left
     new_left&.parent = self
+
+    left&.clear_ancestors_caches
   end
 
   def right=(new_right)
@@ -51,6 +59,8 @@ class Tree
 
     @right = new_right
     new_right&.parent = self
+
+    right&.clear_ancestors_caches
   end
 
   def leaf?
@@ -66,10 +76,12 @@ class Tree
   end
 
   def larger_height_child
-    if (left&.height || 0) >= (right&.height || 0)
-      left
-    else
-      right
+    read_or_insert_in_cache :larger_height_child do
+      if (left&.height || 0) >= (right&.height || 0)
+        left
+      else
+        right
+      end
     end
   end
 
@@ -84,31 +96,45 @@ class Tree
   end
 
   def height
-    1 + [left&.height || 0, right&.height || 0].max
+    read_or_insert_in_cache :height do
+      1 + [left&.height || 0, right&.height || 0].max
+    end
   end
 
   def count
-    1 + (left&.count || 0) + (right&.count || 0)
+    read_or_insert_in_cache :count do
+      1 + (left&.count || 0) + (right&.count || 0)
+    end
   end
 
   def pre_order(&block)
-    [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
+    read_or_insert_in_cache :pre_order, block do
+      [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
+    end
   end
 
   def in_order(&block)
-    (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
+    read_or_insert_in_cache :in_order, block do
+      (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
+    end
   end
 
   def post_order(&block)
-    (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
+    read_or_insert_in_cache :post_order, block do
+      (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
+    end
   end
 
   def leftmost_node
-    left&.leftmost_node || self
+    read_or_insert_in_cache :leftmost_node do
+      left&.leftmost_node || self
+    end
   end
 
   def rightmost_node
-    right&.rightmost_node || self
+    read_or_insert_in_cache :rightmost_node do
+      right&.rightmost_node || self
+    end
   end
 
   def ancestors(include_current_node = false)
@@ -118,7 +144,9 @@ class Tree
   end
 
   def deepest_path
-    [self] + (larger_height_child&.deepest_path || [])
+    read_or_insert_in_cache :deepest_path do
+      [self] + (larger_height_child&.deepest_path || [])
+    end
   end
 
   def as_text
@@ -129,10 +157,12 @@ class Tree
   end
 
   def as_gui(prefix = '')
-    ''.tap do |output|
-      output << [prefix, value, NEW_LINE].join
-      output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
-      output << [prefix, '├─ ⬊', (left ? [' (', value, ')'].join : ''), ': ', NEW_LINE, right.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if right
+    read_or_insert_in_cache :as_gui, prefix do
+      ''.tap do |output|
+        output << [prefix, value, NEW_LINE].join
+        output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
+        output << [prefix, '├─ ⬊', (left ? [' (', value, ')'].join : ''), ': ', NEW_LINE, right.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if right
+      end
     end
   end
 
@@ -141,13 +171,15 @@ class Tree
   end
 
   def level_values(level, range: , parent: nil, type: nil)
-    mean_position = (range[0] + range[1]) / 2
+    read_or_insert_in_cache :level_values, [level, range , parent, type] do
+      mean_position = (range[0] + range[1]) / 2
 
-    if level == 1
-      [{ value: value, parent: parent&.value, type: type, position: mean_position, range: range }]
-    else
-      (left&.level_values(level - 1, parent: self, type: :left, range: [range[0], mean_position]) || []) +
-        (right&.level_values(level - 1, parent: self, type: :right, range: [mean_position, range[1]]) || [])
+      if level == 1
+        [{ value: value, parent: parent&.value, type: type, position: mean_position, range: range }]
+      else
+        (left&.level_values(level - 1, parent: self, type: :left, range: [range[0], mean_position]) || []) +
+          (right&.level_values(level - 1, parent: self, type: :right, range: [mean_position, range[1]]) || [])
+      end
     end
   end
 
@@ -192,10 +224,12 @@ class Tree
   # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
   # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
   def as_tree_gui(width:)
-    return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
+    read_or_insert_in_cache :as_tree_gui, width do
+      return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
 
-    (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
-      draw_tree canvas, 0..(width - 1), 1
+      (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
+        draw_tree canvas, 0..(width - 1), 1
+      end
     end
   end
 
@@ -207,9 +241,31 @@ class Tree
     g.output png: image_file
   end
 
+  def clear_cache
+    @cache = {}
+  end
+
   protected
 
   attr_writer :parent
+
+  def read_or_insert_in_cache(method_name, *args, &block)
+    if @cache.has_key?(method_name)
+      if @cache[method_name].has_key?(args)
+        return @cache[method_name][args]
+      end
+    else
+      @cache[method_name] = {}
+    end
+
+    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
+
+    @cache[method_name][args] = block.call
+  end
+
+  def clear_ancestors_caches(include_current_node = true)
+    ancestors(include_current_node).each &:clear_cache
+  end
 
   def draw_tree(canvas, range, level, type = nil)
     canvas.tap do
@@ -281,23 +337,27 @@ class BST < Tree
   end
 
   def add(node_value)
-    case compare(node_value, value)
-      when -1, 0
-        if left
-          left.add node_value
-        else
-          self.class.new(node_value, &comparison_block).tap do |new_child|
-            self.left = new_child
+    begin
+      case compare(node_value, value)
+        when -1, 0
+          if left
+            left.add node_value
+          else
+            self.class.new(node_value, &comparison_block).tap do |new_child|
+              self.left = new_child
+            end
           end
-        end
-      when 1
-        if right
-          right.add node_value
-        else
-          self.class.new(node_value, &comparison_block).tap do |new_child|
-            self.right = new_child
+        when 1
+          if right
+            right.add node_value
+          else
+            self.class.new(node_value, &comparison_block).tap do |new_child|
+              self.right = new_child
+            end
           end
-        end
+      end
+    ensure
+      clear_ancestors_caches
     end
   end
 
@@ -305,28 +365,34 @@ class BST < Tree
   def delete(node_or_value)
     return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
 
-    # Has both children?
-    if node.left && node.right
-      # Find the node's inorder successor (its right child's leftmost node). PS: using the inorder predecessor would also work.
-      leftmost = node.right.leftmost_node
+    begin
+      node_parent = node.parent
 
-      # Replace the node to be deleted's value by the right child's leftmost node value.
-      node.value = leftmost.value
-      delete leftmost
+      # Has both children?
+      if node.left && node.right
+        # Find the node's inorder successor (its right child's leftmost node). PS: using the inorder predecessor would also work.
+        leftmost = node.right.leftmost_node
 
-      # Alternative:
-      #
-      # rightmost.parent.send "#{rightmost.descendant_type}=", rightmost.left
-      # node.value = rightmost.value
-    else
-      # Has at least 1 child?
-      if (child = node.left || node.right)
-        node.copy_attrs_from child    # Copy the (single) child attributes to it.
-      elsif !node.orphan?   # Leaf node. Node has a parent?
-        node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the main root. Simply nullify its parent left or right subtree.
-      else    # Main (and leaf) root.
-        raise EmptyTreeError
+        # Replace the node to be deleted's value by the right child's leftmost node value.
+        node.value = leftmost.value
+        delete leftmost
+
+        # Alternative:
+        #
+        # rightmost.parent.send "#{rightmost.descendant_type}=", rightmost.left
+        # node.value = rightmost.value
+      else
+        # Has at least 1 child?
+        if (child = node.left || node.right)
+          node.copy_attrs_from child    # Copy the (single) child attributes to it.
+        elsif !node.orphan?   # Leaf node. Node has a parent?
+          node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the main root. Simply nullify its parent left or right subtree.
+        else    # Main (and leaf) root.
+          raise EmptyTreeError
+        end
       end
+    ensure
+      node_parent&.clear_ancestors_caches
     end
   end
 
@@ -544,7 +610,7 @@ end
 # end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2**10 - 1)).to_a.shuffle
+items = (1..(2**6 - 1)).to_a.shuffle
 
 p items
 
