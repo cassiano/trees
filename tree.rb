@@ -76,7 +76,7 @@ class Tree
   end
 
   def larger_height_child
-    read_or_insert_in_cache :larger_height_child do
+    fetch_from_cache :larger_height_child do
       if (left&.height || 0) >= (right&.height || 0)
         left
       else
@@ -96,19 +96,19 @@ class Tree
   end
 
   def height
-    read_or_insert_in_cache :height do
+    fetch_from_cache :height do
       1 + [left&.height || 0, right&.height || 0].max
     end
   end
 
   def count
-    read_or_insert_in_cache :count do
+    fetch_from_cache :count do
       1 + (left&.count || 0) + (right&.count || 0)
     end
   end
 
   def pre_order(&block)
-    read_or_insert_in_cache :pre_order, block do
+    fetch_from_cache :pre_order, block do
       [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
     end
   end
@@ -122,13 +122,13 @@ class Tree
   end
 
   def leftmost_node
-    read_or_insert_in_cache :leftmost_node do
+    fetch_from_cache :leftmost_node do
       left&.leftmost_node || self
     end
   end
 
   def rightmost_node
-    read_or_insert_in_cache :rightmost_node do
+    fetch_from_cache :rightmost_node do
       right&.rightmost_node || self
     end
   end
@@ -140,13 +140,13 @@ class Tree
   end
 
   def deepest_path
-    read_or_insert_in_cache :deepest_path do
+    fetch_from_cache :deepest_path do
       [self] + (larger_height_child&.deepest_path || [])
     end
   end
 
   def as_text
-    read_or_insert_in_cache :as_text do
+    fetch_from_cache :as_text do
       { ✉: value }.tap do |result|
         result.merge! ⬋: left.as_text if left
         result.merge! ⬊: right.as_text if right
@@ -155,7 +155,7 @@ class Tree
   end
 
   def as_gui(prefix = '')
-    read_or_insert_in_cache :as_gui, prefix do
+    fetch_from_cache :as_gui, prefix do
       ''.tap do |output|
         output << [prefix, value, NEW_LINE].join
         output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
@@ -169,7 +169,7 @@ class Tree
   end
 
   def level_values(level, range: , parent: nil, type: nil)
-    read_or_insert_in_cache :level_values, [level, range , parent, type] do
+    fetch_from_cache :level_values, [level, range , parent, type] do
       mean_position = (range[0] + range[1]) / 2
 
       if level == 1
@@ -222,7 +222,7 @@ class Tree
   # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
   # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
   def as_tree_gui(width:)
-    read_or_insert_in_cache :as_tree_gui, width do
+    fetch_from_cache :as_tree_gui, width do
       return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
 
       (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
@@ -240,6 +240,8 @@ class Tree
   end
 
   def clear_cache
+    puts "Clearing cache for node `#{value}`" if DEBUG
+
     @cache = {}
   end
 
@@ -247,7 +249,7 @@ class Tree
 
   attr_writer :parent
 
-  def read_or_insert_in_cache(method_name, *args, &block)
+  def fetch_from_cache(method_name, *args, &block)
     if @cache.has_key?(method_name)
       if @cache[method_name].has_key?(args)
         return @cache[method_name][args]
@@ -395,7 +397,7 @@ class BST < Tree
   end
 
   def search(node_value)
-    read_or_insert_in_cache :search, node_value do
+    fetch_from_cache :search, node_value do
       case compare(node_value, value)
         when 0
           self
@@ -408,13 +410,13 @@ class BST < Tree
   end
 
   def max
-    read_or_insert_in_cache :max do
+    fetch_from_cache :max do
       rightmost_node&.value
     end
   end
 
   def min
-    read_or_insert_in_cache :min do
+    fetch_from_cache :min do
       leftmost_node&.value
     end
   end
@@ -469,7 +471,7 @@ class AvlTree < BST
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
-    read_or_insert_in_cache :balanced do
+    fetch_from_cache :balanced do
       subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
     end
   end
