@@ -17,15 +17,11 @@ class Tree
     self.value = value
     self.left = left
     self.right = right
-
-    # clear_cache
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
-    self.class.new(value, left: left, right: right).tap do
-      # clear_ancestors_caches
-    end
+    self.class.new value, left: left, right: right
   end
 
   # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
@@ -33,8 +29,6 @@ class Tree
     self.value = another_node.value
     self.left = another_node.left
     self.right = another_node.right
-
-    # clear_ancestors_caches
   end
 
   def left=(new_left)
@@ -43,8 +37,6 @@ class Tree
 
     @left = new_left
     left&.parent = self
-
-    # left&.clear_ancestors_caches
   end
 
   def right=(new_right)
@@ -53,8 +45,6 @@ class Tree
 
     @right = new_right
     right&.parent = self
-
-    # right&.clear_ancestors_caches
   end
 
   def leaf?
@@ -88,9 +78,7 @@ class Tree
   end
 
   def height
-    # read_or_insert_in_cache :height do
-      1 + [left&.height || 0, right&.height || 0].max
-    # end
+    1 + [left&.height || 0, right&.height || 0].max
   end
 
   def count
@@ -213,29 +201,9 @@ class Tree
     g.output png: image_file
   end
 
-  def clear_cache
-    @cache = {}
-  end
-
   protected
 
   attr_writer :parent
-
-  def read_or_insert_in_cache(method_name, *args, &block)
-    if @cache.has_key?(method_name)
-      if @cache[method_name].has_key?(args)
-        return @cache[method_name][args]
-      end
-    else
-      @cache[method_name] = {}
-    end
-
-    @cache[method_name][args] = block.call(*args)
-  end
-
-  def clear_ancestors_caches(include_current_node = true)
-    ancestors(include_current_node).each &:clear_cache
-  end
 
   def draw_tree(canvas, range, level, type = nil)
     canvas.tap do
