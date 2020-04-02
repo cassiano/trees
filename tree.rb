@@ -22,22 +22,6 @@ class Tree
     self.cache = {} if CACHE_ENABLED
   end
 
-  # When cloning, notice that the receiver (i.e. self) effectively looses its children.
-  def clone
-    self.class.new(value, left: left, right: right).tap do
-      clear_ancestors_caches if CACHE_ENABLED
-    end
-  end
-
-  # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
-  def copy_attrs_from(another_node)
-    self.value = another_node.value
-    self.left = another_node.left
-    self.right = another_node.right
-
-    clear_ancestors_caches if CACHE_ENABLED
-  end
-
   def left=(new_left)
     # Detach the current left node, if any, from its previous parent.
     left&.parent = nil
@@ -60,6 +44,22 @@ class Tree
 
     @right = new_right
     new_right&.parent = self
+
+    clear_ancestors_caches if CACHE_ENABLED
+  end
+
+  # When cloning, notice that the receiver (i.e. self) effectively looses its children.
+  def clone
+    self.class.new(value, left: left, right: right).tap do
+      clear_ancestors_caches if CACHE_ENABLED
+    end
+  end
+
+  # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
+  def copy_attrs_from(another_node)
+    self.value = another_node.value
+    self.left = another_node.left
+    self.right = another_node.right
 
     clear_ancestors_caches if CACHE_ENABLED
   end
