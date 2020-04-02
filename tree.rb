@@ -77,12 +77,10 @@ class Tree
   end
 
   def larger_height_child
-    fetch_from_cache __method__ do
-      if (left&.height || 0) >= (right&.height || 0)
-        left
-      else
-        right
-      end
+    if (left&.height || 0) >= (right&.height || 0)
+      left
+    else
+      right
     end
   end
 
@@ -97,57 +95,31 @@ class Tree
   end
 
   def height
-    fetch_from_cache __method__ do
-      1 + [left&.height || 0, right&.height || 0].max
-    end
+    1 + [left&.height || 0, right&.height || 0].max
   end
 
   def count
-    fetch_from_cache __method__ do
-      1 + (left&.count || 0) + (right&.count || 0)
-    end
+    1 + (left&.count || 0) + (right&.count || 0)
   end
 
-  # def pre_order(&block)
-  #   [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
-  # end
-  #
-  # def in_order(&block)
-  #   (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
-  # end
-  #
-  # def post_order(&block)
-  #   (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
-  # end
-
   def pre_order
-    fetch_from_cache __method__ do
-      [self] + (left&.pre_order || []) + (right&.pre_order || [])
-    end
+    [self] + (left&.pre_order || []) + (right&.pre_order || [])
   end
 
   def in_order
-    fetch_from_cache __method__ do
-      (left&.in_order || []) + [self] + (right&.in_order || [])
-    end
+    (left&.in_order || []) + [self] + (right&.in_order || [])
   end
 
   def post_order
-    fetch_from_cache __method__ do
-      (left&.post_order || []) + (right&.post_order || []) + [self]
-    end
+    (left&.post_order || []) + (right&.post_order || []) + [self]
   end
 
   def leftmost_node
-    fetch_from_cache __method__ do
-      left&.leftmost_node || self
-    end
+    left&.leftmost_node || self
   end
 
   def rightmost_node
-    fetch_from_cache __method__ do
-      right&.rightmost_node || self
-    end
+    right&.rightmost_node || self
   end
 
   def ancestors(include_current_node = false)
@@ -157,27 +129,21 @@ class Tree
   end
 
   def deepest_path
-    fetch_from_cache __method__ do
-      [self] + (larger_height_child&.deepest_path || [])
-    end
+    [self] + (larger_height_child&.deepest_path || [])
   end
 
   def as_text
-    fetch_from_cache __method__ do
-      { ✉: value }.tap do |result|
-        result.merge! ⬋: left.as_text if left
-        result.merge! ⬊: right.as_text if right
-      end
+    { ✉: value }.tap do |result|
+      result.merge! ⬋: left.as_text if left
+      result.merge! ⬊: right.as_text if right
     end
   end
 
   def as_gui(prefix = '')
-    fetch_from_cache __method__, prefix do
-      ''.tap do |output|
-        output << [prefix, value, NEW_LINE].join
-        output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
-        output << [prefix, '├─ ⬊', (left ? [' (', value, ')'].join : ''), ': ', NEW_LINE, right.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if right
-      end
+    ''.tap do |output|
+      output << [prefix, value, NEW_LINE].join
+      output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
+      output << [prefix, '├─ ⬊', (left ? [' (', value, ')'].join : ''), ': ', NEW_LINE, right.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if right
     end
   end
 
@@ -197,12 +163,10 @@ class Tree
   # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
   # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
   def as_tree_gui(width:)
-    fetch_from_cache __method__, width do
-      return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
+    return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
 
-      (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
-        draw_tree canvas, 0..(width - 1), 1
-      end
+    (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
+      draw_tree canvas, 0..(width - 1), 1
     end
   end
 
@@ -215,14 +179,14 @@ class Tree
   end
 
   def clear_cache
-    return unless CACHE_ENABLED
-
     puts "Clearing cache for node `#{value}`" if DEBUG
 
     @cache = {}
   end
 
   def clear_descendants_caches
+    return unless CACHE_ENABLED
+
     pre_order.each &:clear_cache
   end
 
@@ -230,8 +194,20 @@ class Tree
 
   attr_writer :parent
 
+  def self.enable_cache_for(*methods)
+    methods.each do |method|
+      alias_method "original_#{method}", method
+
+      define_method(method) do |*args|
+        fetch_from_cache method, args do
+          send "original_#{method}", *args
+        end
+      end
+    end
+  end
+
   def fetch_from_cache(method_name, *args, &block)
-    return block.call unless CACHE_ENABLED
+    return block.call
 
     if @cache.has_key?(method_name)
       if @cache[method_name].has_key?(args)
@@ -309,6 +285,8 @@ class Tree
 
     canvas[row][position..position + text.size - 1] = text
   end
+
+  enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :as_text, :as_gui, :as_tree_gui if CACHE_ENABLED
 end
 
 class BST < Tree
@@ -345,9 +323,9 @@ class BST < Tree
     end
   end
 
-  # https://www.geeksforgeeks.org/binary-search-tree-set-2-delete/
+  # https://www.geeksforgeeks.org/binary-find-tree-set-2-delete/
   def delete(node_or_value)
-    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
+    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
 
     begin
       node_parent = node.parent
@@ -380,29 +358,23 @@ class BST < Tree
     end
   end
 
-  def search(node_value)
-    fetch_from_cache __method__, node_value do
-      case compare(node_value, value)
-        when 0
-          self
-        when -1
-          left&.search node_value
-        when 1
-          right&.search node_value
-      end
+  def find(node_value)
+    case compare(node_value, value)
+      when 0
+        self
+      when -1
+        left&.find node_value
+      when 1
+        right&.find node_value
     end
   end
 
   def max
-    fetch_from_cache __method__ do
-      rightmost_node&.value
-    end
+    rightmost_node&.value
   end
 
   def min
-    fetch_from_cache __method__ do
-      leftmost_node&.value
-    end
+    leftmost_node&.value
   end
 
   def clone
@@ -418,6 +390,8 @@ class BST < Tree
   def compare(a, b)
     comparison_block ? comparison_block.call(a, b) : a <=> b
   end
+
+  enable_cache_for :find, :max, :min
 end
 
 class AvlTree < BST
@@ -435,7 +409,7 @@ class AvlTree < BST
 
   # https://www.geeksforgeeks.org/avl-tree-set-2-deletion/
   def delete(node_or_value)
-    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : search(node_or_value))
+    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
 
     node_parent = node.parent
 
@@ -455,9 +429,7 @@ class AvlTree < BST
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
-    fetch_from_cache __method__ do
-      subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
-    end
+    subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
   end
 
   def subtrees_height_diff
@@ -589,6 +561,8 @@ class AvlTree < BST
       puts "No unbalanced nodes found!" if DEBUG
     end
   end
+
+  enable_cache_for :balanced? if CACHE_ENABLED
 end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
@@ -623,3 +597,4 @@ p @root.in_order.map(&:value)
 @root.as_graphviz; `open tree.png`
 
 # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
+# 1_000_000.times { |i| puts i; node = @root; @root.delete node; value = rand(10**12); next if @root.find(value); @root.add value }
