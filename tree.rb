@@ -48,7 +48,7 @@ class Tree
     @left = new_left
     new_left&.parent = self
 
-    left&.clear_ancestors_caches
+    clear_ancestors_caches
   end
 
   def right=(new_right)
@@ -61,7 +61,7 @@ class Tree
     @right = new_right
     new_right&.parent = self
 
-    right&.clear_ancestors_caches
+    clear_ancestors_caches
   end
 
   def leaf?
@@ -108,18 +108,34 @@ class Tree
     end
   end
 
-  def pre_order(&block)
-    fetch_from_cache __method__, block do
-      [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
+  # def pre_order(&block)
+  #   [block ? block.call(self) : self] + (left&.pre_order(&block) || []) + (right&.pre_order(&block) || [])
+  # end
+  #
+  # def in_order(&block)
+  #   (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
+  # end
+  #
+  # def post_order(&block)
+  #   (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
+  # end
+
+  def pre_order
+    fetch_from_cache __method__ do
+      [self] + (left&.pre_order || []) + (right&.pre_order || [])
     end
   end
 
-  def in_order(&block)
-    (left&.in_order(&block) || []) + [block ? block.call(self) : self] + (right&.in_order(&block) || [])
+  def in_order
+    fetch_from_cache __method__ do
+      (left&.in_order || []) + [self] + (right&.in_order || [])
+    end
   end
 
-  def post_order(&block)
-    (left&.post_order(&block) || []) + (right&.post_order(&block) || []) + [block ? block.call(self) : self]
+  def post_order
+    fetch_from_cache __method__ do
+      (left&.post_order || []) + (right&.post_order || []) + [self]
+    end
   end
 
   def leftmost_node
@@ -169,48 +185,6 @@ class Tree
     count.to_f / (2 ** height - 1)
   end
 
-  # def level_values(level, range: , parent: nil, type: nil)
-  #   fetch_from_cache __method__, level, range , parent, type do
-  #     mean_position = (range[0] + range[1]) / 2
-  #
-  #     if level == 1
-  #       [{ value: value, parent: parent&.value, type: type, position: mean_position, range: range }]
-  #     else
-  #       (left&.level_values(level - 1, parent: self, type: :left, range: [range[0], mean_position]) || []) +
-  #         (right&.level_values(level - 1, parent: self, type: :right, range: [mean_position, range[1]]) || [])
-  #     end
-  #   end
-  # end
-  #
-  # # Non-recursive version, both more complex and slower than the recursive one.
-  # def as_tree_gui(width:)
-  #   tree_height = height
-  #   canvas = (tree_height * 2).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }
-  #
-  #   (1..tree_height).each do |level|
-  #     level_values(level, range: [1, width]).each do |node_data|
-  #       text_value = node_data[:value].to_s
-  #       base_row = (level - 1) * 2
-  #
-  #       if level > 1
-  #         if node_data[:type] == :left
-  #           fill_canvas canvas, base_row, '┌' + '─' * (node_data[:range][1] - node_data[:position] - 1) + '┘', node_data[:position] - 1
-  #         else    # right
-  #           if canvas[base_row + 0][node_data[:range][0] - 1] == ' '
-  #             fill_canvas canvas, base_row, '└' + '─' * (node_data[:position] - node_data[:range][0] - 1) + '┐', node_data[:range][0] - 1
-  #           else
-  #             fill_canvas canvas, base_row, '┴' + '─' * (node_data[:position] - node_data[:range][0] - 1) + '┐', node_data[:range][0] - 1
-  #           end
-  #         end
-  #       end
-  #
-  #       fill_canvas canvas, base_row + 1, text_value, node_data[:position] - 1
-  #     end
-  #   end
-  #
-  #   canvas
-  # end
-
   #                                                                             24
   #                                      ┌──────────────────────────────────────┴──────────────────────────────────────┐
   #                                      10                                                                            47
@@ -248,6 +222,10 @@ class Tree
     @cache = {}
   end
 
+  def clear_descendants_caches
+    pre_order.each &:clear_cache
+  end
+
   protected
 
   attr_writer :parent
@@ -268,10 +246,10 @@ class Tree
     @cache[method_name][args] = block.call
   end
 
-  def clear_ancestors_caches(include_current_node = true)
+  def clear_ancestors_caches
     return unless CACHE_ENABLED
 
-    ancestors(include_current_node).each &:clear_cache
+    ancestors(true).each &:clear_cache
   end
 
   def draw_tree(canvas, range, level, type = nil)
@@ -624,7 +602,7 @@ end
 # end
 
 # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2**6 - 1)).to_a.shuffle
+items = (1..(2 ** 6 - 1)).to_a.shuffle
 
 p items
 
@@ -641,7 +619,7 @@ puts
 puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
 puts "Height: #{@root.height}"
 puts
-p @root.in_order &:value
+p @root.in_order.map(&:value)
 @root.as_graphviz; `open tree.png`
 
 # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
