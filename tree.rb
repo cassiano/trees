@@ -206,20 +206,6 @@ class Tree
     end
   end
 
-  def fetch_from_cache(method_name, *args, &block)
-    if cache.has_key?(method_name)
-      if cache[method_name].has_key?(args)
-        return cache[method_name][args]
-      end
-    else
-      cache[method_name] = {}
-    end
-
-    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
-
-    cache[method_name][args] = block.call
-  end
-
   def clear_ancestors_caches
     ancestors(true).each &:clear_cache
   end
@@ -282,7 +268,21 @@ class Tree
     canvas[row][position..position + text.size - 1] = text
   end
 
-  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
+  def fetch_from_cache(method_name, *args, &block)
+    if cache.has_key?(method_name)
+      if cache[method_name].has_key?(args)
+        return cache[method_name][args]
+      end
+    else
+      cache[method_name] = {}
+    end
+
+    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
+
+    cache[method_name][args] = block.call
+  end
+
+  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :as_text, :as_gui, :as_tree_gui if CACHE_ENABLED
 end
 
@@ -388,7 +388,7 @@ class BST < Tree
     comparison_block ? comparison_block.call(a, b) : a <=> b
   end
 
-  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
+  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :find, :max, :min
 end
 
@@ -560,7 +560,7 @@ class AvlTree < BST
     end
   end
 
-  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
+  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :balanced? if CACHE_ENABLED
 end
 
@@ -581,12 +581,18 @@ p items
 
 @root = AvlTree.new(items.shift)
 
-items.each { |item| @root.add item }
+count = 0
+items.each do |item|
+  @root.add item
 
-# ap @root.as_text
-# puts
-# puts @root.as_gui
-# puts
+  puts count if count % 1000 == 0
+  count += 1
+end
+
+ap @root.as_text
+puts
+puts @root.as_gui
+puts
 puts @root.as_tree_gui(width: 158)
 puts
 puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
