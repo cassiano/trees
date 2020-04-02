@@ -280,7 +280,7 @@ class Tree
     cache[method_name][args] = block.call
   end
 
-  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
+  # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :as_text, :as_gui, :as_tree_gui if CACHE_ENABLED
 end
 
@@ -386,7 +386,7 @@ class BST < Tree
     comparison_block ? comparison_block.call(a, b) : a <=> b
   end
 
-  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
+  # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :find, :max, :min
 end
 
@@ -553,7 +553,7 @@ class AvlTree < BST
     end
   end
 
-  # PS: only cache methods which depend exclusively on the current node and/or its descendants, never on its ancestors.
+  # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
   enable_cache_for :balanced? if CACHE_ENABLED
 end
 
