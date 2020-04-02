@@ -19,13 +19,13 @@ class Tree
     self.left = left
     self.right = right
 
-    @cache = {}
+    @cache = {} if CACHE_ENABLED
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
     self.class.new(value, left: left, right: right).tap do
-      clear_ancestors_caches
+      clear_ancestors_caches if CACHE_ENABLED
     end
   end
 
@@ -35,7 +35,7 @@ class Tree
     self.left = another_node.left
     self.right = another_node.right
 
-    clear_ancestors_caches
+    clear_ancestors_caches if CACHE_ENABLED
   end
 
   def left=(new_left)
@@ -48,7 +48,7 @@ class Tree
     @left = new_left
     new_left&.parent = self
 
-    clear_ancestors_caches
+    clear_ancestors_caches if CACHE_ENABLED
   end
 
   def right=(new_right)
@@ -61,7 +61,7 @@ class Tree
     @right = new_right
     new_right&.parent = self
 
-    clear_ancestors_caches
+    clear_ancestors_caches if CACHE_ENABLED
   end
 
   def leaf?
@@ -179,14 +179,14 @@ class Tree
   end
 
   def clear_cache
+    return unless CACHE_ENABLED
+
     puts "Clearing cache for node `#{value}`" if DEBUG
 
     @cache = {}
   end
 
   def clear_descendants_caches
-    return unless CACHE_ENABLED
-
     pre_order.each &:clear_cache
   end
 
@@ -223,8 +223,6 @@ class Tree
   end
 
   def clear_ancestors_caches
-    return unless CACHE_ENABLED
-
     ancestors(true).each &:clear_cache
   end
 
@@ -319,7 +317,7 @@ class BST < Tree
           end
       end
     ensure
-      clear_ancestors_caches
+      clear_ancestors_caches if CACHE_ENABLED
     end
   end
 
@@ -354,7 +352,7 @@ class BST < Tree
         end
       end
     ensure
-      node_parent&.clear_ancestors_caches
+      node_parent&.clear_ancestors_caches if CACHE_ENABLED
     end
   end
 
