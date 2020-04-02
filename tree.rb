@@ -207,8 +207,6 @@ class Tree
   end
 
   def fetch_from_cache(method_name, *args, &block)
-    return block.call
-
     if @cache.has_key?(method_name)
       if @cache[method_name].has_key?(args)
         return @cache[method_name][args]
@@ -284,6 +282,7 @@ class Tree
     canvas[row][position..position + text.size - 1] = text
   end
 
+  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
   enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :as_text, :as_gui, :as_tree_gui if CACHE_ENABLED
 end
 
@@ -389,6 +388,7 @@ class BST < Tree
     comparison_block ? comparison_block.call(a, b) : a <=> b
   end
 
+  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
   enable_cache_for :find, :max, :min
 end
 
@@ -560,6 +560,7 @@ class AvlTree < BST
     end
   end
 
+  # PS: only cache methods which depend exclusively on the current node and its descendants, never on its ancestors.
   enable_cache_for :balanced? if CACHE_ENABLED
 end
 
