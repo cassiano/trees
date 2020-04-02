@@ -179,8 +179,6 @@ class Tree
   end
 
   def clear_cache
-    return unless CACHE_ENABLED
-
     puts "Clearing cache for node `#{value}`" if DEBUG
 
     self.cache = {}
@@ -447,8 +445,6 @@ class AvlTree < BST
   # Source: https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
   def rotate(direction)
     puts "Rotating node #{value} to the #{direction}..." if DEBUG
-    # puts "Before:" if DEBUG
-    # puts as_tree_gui(width: 158) if DEBUG
 
     previous_parent = parent
 
@@ -472,9 +468,6 @@ class AvlTree < BST
         x.right = y_clone
         y.copy_attrs_from x       # Original y get all x's data, in practice making x the new root
     end
-
-    # puts "after:" if DEBUG
-    # puts as_tree_gui(width: 158) if DEBUG
   end
 
   def unbalanced_ancestors_path
