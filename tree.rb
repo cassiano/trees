@@ -19,7 +19,7 @@ class Tree
     self.left = left
     self.right = right
 
-    @cache = {} if CACHE_ENABLED
+    self.cache = {} if CACHE_ENABLED
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
@@ -183,7 +183,7 @@ class Tree
 
     puts "Clearing cache for node `#{value}`" if DEBUG
 
-    @cache = {}
+    self.cache = {}
   end
 
   def clear_descendants_caches
@@ -192,7 +192,7 @@ class Tree
 
   protected
 
-  attr_writer :parent
+  attr_writer :parent, :cache
 
   def self.enable_cache_for(*methods)
     methods.each do |method|
@@ -207,17 +207,17 @@ class Tree
   end
 
   def fetch_from_cache(method_name, *args, &block)
-    if @cache.has_key?(method_name)
-      if @cache[method_name].has_key?(args)
-        return @cache[method_name][args]
+    if cache.has_key?(method_name)
+      if cache[method_name].has_key?(args)
+        return cache[method_name][args]
       end
     else
-      @cache[method_name] = {}
+      cache[method_name] = {}
     end
 
     puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
 
-    @cache[method_name][args] = block.call
+    cache[method_name][args] = block.call
   end
 
   def clear_ancestors_caches
