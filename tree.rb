@@ -7,7 +7,8 @@ class Tree
   end
 
   DEBUG = true
-  CACHE_ENABLED = true
+  CACHING = true
+  ASSERTIONS = true
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
 
@@ -19,7 +20,7 @@ class Tree
     self.left = left
     self.right = right
 
-    self.cache = {} if CACHE_ENABLED
+    self.cache = {} if CACHING
   end
 
   def left=(new_left)
@@ -32,7 +33,7 @@ class Tree
     @left = new_left
     new_left&.parent = self
 
-    clear_ancestors_caches if CACHE_ENABLED
+    clear_ancestors_caches if CACHING
   end
 
   def right=(new_right)
@@ -45,13 +46,13 @@ class Tree
     @right = new_right
     new_right&.parent = self
 
-    clear_ancestors_caches if CACHE_ENABLED
+    clear_ancestors_caches if CACHING
   end
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
     self.class.new(value, left: left, right: right).tap do
-      clear_ancestors_caches if CACHE_ENABLED
+      clear_ancestors_caches if CACHING
     end
   end
 
@@ -61,7 +62,7 @@ class Tree
     self.left = another_node.left
     self.right = another_node.right
 
-    clear_ancestors_caches if CACHE_ENABLED
+    clear_ancestors_caches if CACHING
   end
 
   def leaf?
@@ -122,9 +123,9 @@ class Tree
     right&.rightmost_node || self
   end
 
-  def ancestors(include_current_node = false)
-    [*(include_current_node ? self : nil)].tap do |ancestors_path|
-      ancestors_path.concat parent.ancestors(true) if parent
+  def ancestors
+    [self].tap do |ancestors_path|
+      ancestors_path.concat parent.ancestors if parent
     end
   end
 
@@ -194,18 +195,18 @@ class Tree
 
   def self.enable_cache_for(*methods)
     methods.each do |method|
-      alias_method "original_#{method}", method
+      alias_method :"original_#{method}", method
 
       define_method(method) do |*args|
         fetch_from_cache method, args do
-          send "original_#{method}", *args
+          send :"original_#{method}", *args
         end
       end
     end
   end
 
   def clear_ancestors_caches
-    ancestors(true).each &:clear_cache
+    ancestors.each &:clear_cache
   end
 
   def draw_tree(canvas, range, level, type = nil)
@@ -281,7 +282,10 @@ class Tree
   end
 
   # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
-  enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :as_text, :as_gui, :as_tree_gui if CACHE_ENABLED
+  if CACHING
+    enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :fill_factor,
+                     :as_text, :as_gui, :as_tree_gui, :as_graphviz
+  end
 end
 
 class BST < Tree
@@ -314,7 +318,7 @@ class BST < Tree
           end
       end
     ensure
-      clear_ancestors_caches if CACHE_ENABLED
+      clear_ancestors_caches if CACHING
     end
   end
 
@@ -349,7 +353,7 @@ class BST < Tree
         end
       end
     ensure
-      node_parent&.clear_ancestors_caches if CACHE_ENABLED
+      node_parent&.clear_ancestors_caches if CACHING
     end
   end
 
@@ -399,7 +403,9 @@ class AvlTree < BST
     super.tap do |new_child|
       new_child.rebalance_after_insertion
 
-      raise "Tree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
+      if ASSERTIONS
+        raise "Tree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
+      end
     end
   end
 
@@ -412,24 +418,22 @@ class AvlTree < BST
     super
 
     if node_parent
-      node_parent.ancestors(true).each do |node_to_be_checked|
+      node_parent.ancestors.each do |node_to_be_checked|
         node_to_be_checked.rebalance_after_deletion
       end
     end
 
     # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
-    # node_parent.ancestors(true).each(&:rebalance_after_deletion) if node_parent
+    # node_parent.ancestors.each(&:rebalance_after_deletion) if node_parent
 
-    raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
+    if ASSERTIONS
+      raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
+    end
   end
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
     subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
-  end
-
-  def subtrees_height_diff
-    ((left&.height || 0) - (right&.height || 0)).abs
   end
 
   protected
@@ -438,9 +442,9 @@ class AvlTree < BST
   #
   #      y      Right Rotation       x
   #     / \        ------->         / \
-  #    x   T3                     T1   y
-  #   / \          <-------           / \
-  # T1   T2     Left Rotation       T2  T3
+  #    x  T3                      T1  y
+  #   / \          <-------          / \
+  # T1  T2      Left Rotation      T2  T3
   #
   # Source: https://www.geeksforgeeks.org/avl-tree-set-1-insertion/
   def rotate(direction)
@@ -450,28 +454,28 @@ class AvlTree < BST
 
     case direction
       when :left
-        x = self                  # x = self (current root)
+        x = self                  # Current root.
         y = x.right
         x_clone = x.clone
         t2 = y.left
         x_clone.right = t2
         y.left = x_clone
-        x.copy_attrs_from y       # Original x get all y's data, in practice making y the new root
+        x.copy_attrs_from y       # Original x get all y's data (value + left/right subtrees), in practice making y the new root.
       when :right
         raise "Invalid condition found for right rotation. Current node (#{value}) must be necessarily greater than left node (#{left.value})" if compare(value, left.value) != 1
 
-        y = self                  # y = self (current root)
+        y = self                  # Current root.
         x = y.left
         y_clone = y.clone
         t2 = x.right
         y_clone.left = t2
         x.right = y_clone
-        y.copy_attrs_from x       # Original y get all x's data, in practice making x the new root
+        y.copy_attrs_from x       # Original y get all x's data (value + left/right subtrees), in practice making x the new root.
     end
   end
 
   def unbalanced_ancestors_path
-    all_ancestors = ancestors(true)
+    all_ancestors = ancestors
 
     first_unbalanced_ancestor = all_ancestors.index { |node| !node.balanced? }
 
@@ -553,8 +557,14 @@ class AvlTree < BST
     end
   end
 
+  private
+
+  def subtrees_height_diff
+    ((left&.height || 0) - (right&.height || 0)).abs
+  end
+
   # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
-  enable_cache_for :balanced? if CACHE_ENABLED
+  enable_cache_for :balanced?, :subtrees_height_diff if CACHING
 end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
@@ -574,12 +584,10 @@ p items
 
 @root = AvlTree.new(items.shift)
 
-count = 0
-items.each do |item|
-  @root.add item
+items.each_with_index do |item, i|
+  puts i if i % 1000 == 0
 
-  puts count if count % 1000 == 0
-  count += 1
+  @root.add item
 end
 
 ap @root.as_text
@@ -595,4 +603,4 @@ p @root.in_order.map(&:value)
 @root.as_graphviz; `open tree.png`
 
 # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
-# 1_000_000.times { |i| puts i; node = @root; @root.delete node; value = rand(10**12); next if @root.find(value); @root.add value }
+# 500_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**18); next if (node = @root.find(value)); @root.add node }; puts @root.balanced?
