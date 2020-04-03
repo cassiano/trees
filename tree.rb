@@ -2,15 +2,56 @@ require 'ap'
 require 'ruby-graphviz'
 require 'securerandom'
 
-class Tree
-  class EmptyTreeError < StandardError
+DEBUG = true
+
+module TreeCaching
+  def self.included(base)
+    base.extend ClassMethods
   end
 
-  DEBUG = true
+  def initialize_cache
+    self.cache = {}
+  end
+
+  def fetch_from_cache(method_name, *args, &block)
+    if cache.has_key?(method_name)
+      if cache[method_name].has_key?(args)
+        return cache[method_name][args]
+      end
+    else
+      cache[method_name] = {}
+    end
+
+    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
+
+    cache[method_name][args] = block.call
+  end
+
+  module ClassMethods
+    def enable_cache_for(*methods)
+      methods.each do |method|
+        alias_method :"original_#{method}", method
+
+        define_method(method) do |*args|
+          fetch_from_cache method, args do
+            send :"original_#{method}", *args
+          end
+        end
+      end
+    end
+  end
+end
+
+class Tree
   CACHING = true
   ASSERTIONS = true
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
+
+  include TreeCaching
+
+  class EmptyTreeError < StandardError
+  end
 
   attr_accessor :value
   attr_reader :left, :right, :parent, :cache
@@ -20,7 +61,7 @@ class Tree
     self.left = left
     self.right = right
 
-    self.cache = {} if CACHING
+    initialize_cache if CACHING
   end
 
   def left=(new_left)
@@ -86,13 +127,7 @@ class Tree
   end
 
   def descendant_type
-    if parent
-      if parent.left == self
-        :left
-      elsif parent.right == self
-        :right
-      end
-    end
+    [:left, :right].find { |type| parent.send(type) == self } if parent
   end
 
   def height
@@ -179,31 +214,25 @@ class Tree
     g.output png: image_file
   end
 
-  def clear_cache
-    puts "Clearing cache for node `#{value}`" if DEBUG
-
-    self.cache = {}
-  end
-
   def clear_descendants_caches
     pre_order.each &:clear_cache
   end
 
+  def clear_cache
+    puts "Clearing cache for node `#{value}`" if DEBUG
+
+    initialize_cache
+  end
+
+  def to_s
+    { value: value, parent: parent, left: left&.value, right: right&.value }
+  end
+
+  alias_method :inspect, :to_s
+
   protected
 
   attr_writer :parent, :cache
-
-  def self.enable_cache_for(*methods)
-    methods.each do |method|
-      alias_method :"original_#{method}", method
-
-      define_method(method) do |*args|
-        fetch_from_cache method, args do
-          send :"original_#{method}", *args
-        end
-      end
-    end
-  end
 
   def clear_ancestors_caches
     ancestors.each &:clear_cache
@@ -265,20 +294,6 @@ class Tree
     raise "Cannot fill canvas with text `#{text}` at position #{position} in row #{row}" if position < 0 || position + text.size > canvas[row].size
 
     canvas[row][position..position + text.size - 1] = text
-  end
-
-  def fetch_from_cache(method_name, *args, &block)
-    if cache.has_key?(method_name)
-      if cache[method_name].has_key?(args)
-        return cache[method_name][args]
-      end
-    else
-      cache[method_name] = {}
-    end
-
-    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{value}`" if DEBUG
-
-    cache[method_name][args] = block.call
   end
 
   # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
