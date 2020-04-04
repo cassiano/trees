@@ -168,6 +168,23 @@ class Tree
     [self] + (larger_height_child&.deepest_path || [])
   end
 
+  def fill_factor
+    count.to_f / (2 ** height - 1)
+  end
+
+  # Find path with maximum sum: `@root.find_minimum_or_maximum_reduced_path(:>=, &:+).map(&:value)`
+  # Find path with minimum sum: `@root.find_minimum_or_maximum_reduced_path(:<=, &:+).map(&:value)`
+  # Find path with maximum sum of last digit, only for even numbers: `@root.find_minimum_or_maximum_reduced_path(:>=) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
+  def find_minimum_or_maximum_reduced_path(comparison_method, &block)
+    left_path = left&.find_minimum_or_maximum_reduced_path(comparison_method, &block) || []
+    right_path = right&.find_minimum_or_maximum_reduced_path(comparison_method, &block) || []
+
+    left_reduction = left_path.map(&:value).reduce(0, &block)
+    right_reduction = right_path.map(&:value).reduce(0, &block)
+
+    [self] + (left_reduction.send(comparison_method, right_reduction) ? left_path : right_path)
+  end
+
   def as_text
     { ✉: value }.tap do |result|
       result.merge! ⬋: left.as_text if left
@@ -181,10 +198,6 @@ class Tree
       output << [prefix, '├─ ⬋: ', NEW_LINE, left.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if left
       output << [prefix, '├─ ⬊', (left ? [' (', value, ')'].join : ''), ': ', NEW_LINE, right.as_gui(prefix + '│' + '  ' * GUI_INDENT_SIZE)].join if right
     end
-  end
-
-  def fill_factor
-    count.to_f / (2 ** height - 1)
   end
 
   #                                                                             24
@@ -225,7 +238,7 @@ class Tree
   end
 
   def to_s
-    { value: value, parent: parent, left: left&.value, right: right&.value }
+    { value: value, parent: parent&.value, left: left&.value, right: right&.value }
   end
 
   alias_method :inspect, :to_s
@@ -402,7 +415,9 @@ class BST < Tree
   protected
 
   def compare(a, b)
-    comparison_block ? comparison_block.call(a, b) : a <=> b
+    (comparison_block ? comparison_block.call(a, b) : a <=> b).tap do |comparison_result|
+      raise "Values #{a} and #{b} cannot be compared." unless comparison_result
+    end
   end
 
   # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
