@@ -326,6 +326,9 @@ class BST < Tree
   end
 
   def add(node_value)
+    raise "Please supply a valid node value." if node_value.nil?
+    raise "Incompatible type `#{node_value.class}` being added." unless value <=> node_value && node_value <=> value
+
     begin
       case compare(node_value, value)
         when -1, 0
@@ -415,9 +418,7 @@ class BST < Tree
   protected
 
   def compare(a, b)
-    (comparison_block ? comparison_block.call(a, b) : a <=> b).tap do |comparison_result|
-      raise "Values #{a} and #{b} cannot be compared." unless comparison_result
-    end
+    comparison_block ? comparison_block.call(a, b) : a <=> b
   end
 
   # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
@@ -633,4 +634,5 @@ p @root.in_order.map(&:value)
 @root.as_graphviz; `open tree.png`
 
 # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
-# 500_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**18); next if (node = @root.find(value)); @root.add node }; puts @root.balanced?
+# puts "Deleting and adding nodes..."
+# 100_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**30); next if @root.find(value); @root.add value }; puts @root.balanced?
