@@ -172,17 +172,19 @@ class Tree
     count.to_f / (2 ** height - 1)
   end
 
-  # Find path with maximum sum: `@root.find_minimum_or_maximum_reduced_path(:>=, &:+).map(&:value)`
-  # Find path with minimum sum: `@root.find_minimum_or_maximum_reduced_path(:<=, &:+).map(&:value)`
-  # Find path with maximum sum of last digit, only for even numbers: `@root.find_minimum_or_maximum_reduced_path(:>=) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
-  def find_minimum_or_maximum_reduced_path(comparison_method, &block)
-    left_path = left&.find_minimum_or_maximum_reduced_path(comparison_method, &block) || []
-    right_path = right&.find_minimum_or_maximum_reduced_path(comparison_method, &block) || []
+  # Find path with maximum sum: `@root.find_min_max_reduced_path(:max, &:+).map(&:value)`
+  # Find path with minimum sum: `@root.find_min_max_reduced_path(:min, &:+).map(&:value)`
+  # Find path with maximum sum of last digit, only for even numbers: `@root.find_min_max_reduced_path(:max) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
+  def find_min_max_reduced_path(min_or_max, &block)
+    raise "Please specify either :min or :max as the 1st parameter" unless [:min, :max].include?(min_or_max)
+
+    left_path = left&.find_min_max_reduced_path(min_or_max, &block) || []
+    right_path = right&.find_min_max_reduced_path(min_or_max, &block) || []
 
     left_reduction = left_path.map(&:value).reduce(0, &block)
     right_reduction = right_path.map(&:value).reduce(0, &block)
 
-    [self] + (left_reduction.send(comparison_method, right_reduction) ? left_path : right_path)
+    [self] + (left_reduction.send(min_or_max == :min ? :<= : :>=, right_reduction) ? left_path : right_path)
   end
 
   def as_text
