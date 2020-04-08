@@ -92,9 +92,7 @@ class Tree
 
   # When cloning, notice that the receiver (i.e. self) effectively looses its children.
   def clone
-    self.class.new(value, left: left, right: right).tap do
-      clear_ancestors_caches if CACHING
-    end
+    self.class.new value, left: left, right: right
   end
 
   # When copying attributes from another node to the receiver (i.e. self), notice that the origin node effectively looses its children.
@@ -102,8 +100,6 @@ class Tree
     self.value = another_node.value
     self.left = another_node.left
     self.right = another_node.right
-
-    clear_ancestors_caches if CACHING
   end
 
   def leaf?
@@ -217,7 +213,7 @@ class Tree
     return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
 
     (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
-      draw_tree canvas, 0..(width - 1), 1
+      inner_as_tree_gui canvas, 0..(width - 1), 1
     end
   end
 
@@ -253,7 +249,7 @@ class Tree
     ancestors.each &:clear_cache
   end
 
-  def draw_tree(canvas, range, level, type = nil)
+  def inner_as_tree_gui(canvas, range, level, type = nil)
     canvas.tap do
       canvas_row = 2 * (level - 1)
       mean_position = mean(range.begin, range.end)
@@ -278,8 +274,8 @@ class Tree
         fill_canvas(canvas, canvas_row + 1, '─' * (offspring_line_width - 1) + '┐', mean_position + 1) if right
       end
 
-      left&.draw_tree canvas, range.begin..mean_position, level + 1, :left
-      right&.draw_tree canvas, mean_position..range.end, level + 1, :right
+      left&.inner_as_tree_gui canvas, range.begin..mean_position, level + 1, :left
+      right&.inner_as_tree_gui canvas, mean_position..range.end, level + 1, :right
     end
   end
 
