@@ -7,6 +7,12 @@ DEBUG = true
 module TreeCaching
   def self.included(base)
     base.extend ClassMethods
+
+    base.class_eval do
+      attr_accessor :cache
+
+      protected :cache=
+    end
   end
 
   def initialize_cache
@@ -48,13 +54,13 @@ class Tree
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
 
-  include TreeCaching
+  include TreeCaching if CACHING
 
   class EmptyTreeError < StandardError
   end
 
   attr_accessor :value
-  attr_reader :left, :right, :parent, :cache
+  attr_reader :left, :right, :parent
 
   def initialize(value, left: nil, right: nil)
     self.value = value
@@ -243,7 +249,7 @@ class Tree
 
   protected
 
-  attr_writer :parent, :cache
+  attr_writer :parent
 
   def clear_ancestors_caches
     ancestors.each &:clear_cache
@@ -420,7 +426,7 @@ class BST < Tree
   end
 
   # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
-  enable_cache_for :find, :max, :min
+  enable_cache_for :find, :max, :min if CACHING
 end
 
 class AvlTree < BST
