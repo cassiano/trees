@@ -1,3 +1,6 @@
+# brew install graphviz
+# gem install ruby-graphviz
+
 require 'ap'
 require 'ruby-graphviz'
 require 'securerandom'
