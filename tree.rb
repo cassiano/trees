@@ -143,6 +143,14 @@ class Tree
     1 + (left&.count || 0) + (right&.count || 0)
   end
 
+  def leaves
+    leaf? ? [self] : (left&.leaves || []) + (right&.leaves || [])
+  end
+
+  def non_leaves
+    leaf? ? [] : [self] + (left&.non_leaves || []) + (right&.non_leaves || [])
+  end
+
   def pre_order
     [self] + (left&.pre_order || []) + (right&.pre_order || [])
   end
@@ -318,7 +326,7 @@ class Tree
 
   # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
   if CACHING
-    enable_cache_for :larger_height_child, :height, :count, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :fill_factor,
+    enable_cache_for :larger_height_child, :height, :count, :leaves, :non_leaves, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :fill_factor,
                      :as_text, :as_gui, :as_tree_gui, :as_graphviz
   end
 end
