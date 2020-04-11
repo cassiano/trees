@@ -118,6 +118,10 @@ class Tree
     !left && !right
   end
 
+  def non_leaf?
+    !leaf?
+  end
+
   def orphan?
     !parent
   end
@@ -147,11 +151,15 @@ class Tree
   end
 
   def leaves
-    leaf? ? [self] : (left&.leaves || []) + (right&.leaves || [])
+    leaf? ?
+      [self] :
+      (left&.leaves || []) + (right&.leaves || [])
   end
 
   def non_leaves
-    leaf? ? [] : [self] + (left&.non_leaves || []) + (right&.non_leaves || [])
+    leaf? ?
+      [] :
+      [self] + (left&.non_leaves || []) + (right&.non_leaves || [])
   end
 
   def pre_order
