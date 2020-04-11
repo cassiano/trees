@@ -56,6 +56,9 @@ class Tree
   ASSERTIONS = true
   NEW_LINE = "\n"
   GUI_INDENT_SIZE = 1
+  LESS_THAN = -1
+  EQUAL_TO = 0
+  GREATER_THAN = 1
 
   include TreeCaching if CACHING
 
@@ -346,7 +349,7 @@ class BST < Tree
 
     begin
       case compare(node_value, value)
-        when -1, 0
+        when LESS_THAN, EQUAL_TO
           if left
             left.add node_value
           else
@@ -354,7 +357,7 @@ class BST < Tree
               self.left = new_child
             end
           end
-        when 1
+        when GREATER_THAN
           if right
             right.add node_value
           else
@@ -405,11 +408,11 @@ class BST < Tree
 
   def find(node_value)
     case compare(node_value, value)
-      when 0
+      when EQUAL_TO
         self
-      when -1
+      when LESS_THAN
         left&.find node_value
-      when 1
+      when GREATER_THAN
         right&.find node_value
     end
   end
