@@ -360,7 +360,7 @@ class BST < Tree
   end
 
   def add(node_value)
-    raise "Please supply a valid node value." if node_value.nil?
+    raise "Please supply a non-null node value." if node_value.nil?
     raise "Incompatible type `#{node_value.class}` being added." unless value <=> node_value && node_value <=> value
 
     begin
