@@ -476,6 +476,8 @@ class AvlTree < BST
 
   # https://www.geeksforgeeks.org/avl-tree-set-2-deletion/
   def delete(node_or_value)
+    puts "Deleting #{node_or_value} from sub-tree #{value}" if DEBUG
+
     return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
 
     node_parent = node.parent
@@ -670,3 +672,4 @@ p @root.in_order.map(&:value)
 # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
 # puts "Deleting and adding nodes..."
 # 100_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**30); next if @root.find(value); @root.add value }; puts @root.balanced?
+
