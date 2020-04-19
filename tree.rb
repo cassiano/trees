@@ -196,6 +196,14 @@ class Tree
     count.to_f / (2 ** height - 1)
   end
 
+  def max
+    [left&.max, value, right&.max].compact.max
+  end
+
+  def min
+    [left&.min, value, right&.min].compact.min
+  end
+
   # Find path with maximum sum: `@root.find_min_max_reduced_path(:max, &:+).map(&:value)`
   # Find path with minimum sum: `@root.find_min_max_reduced_path(:min, &:+).map(&:value)`
   # Find path with maximum sum of last digit, only for even numbers: `@root.find_min_max_reduced_path(:max) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
@@ -338,7 +346,7 @@ class Tree
   # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
   if CACHING
     enable_cache_for :larger_height_child, :height, :count, :leaves, :non_leaves, :pre_order, :in_order, :post_order, :leftmost_node, :rightmost_node, :deepest_path, :fill_factor,
-                     :as_text, :as_gui, :as_tree_gui, :as_graphviz
+                     :max, :min, :as_text, :as_gui, :as_tree_gui, :as_graphviz
   end
 end
 
