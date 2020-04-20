@@ -500,7 +500,7 @@ class AvlTree < BST
 
   # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
   def balanced?
-    subtrees_height_diff <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+    balance_factor <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
   end
 
   protected
@@ -553,7 +553,7 @@ class AvlTree < BST
     unless ancestors_checked_after_insertion
       puts "Rebalancing node #{value} after insert operation" if DEBUG
 
-      found_unbalanced_node,ancestors_path = unbalanced_ancestors_path
+      found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
 
       if found_unbalanced_node
         if ancestors_path.size >= 3
@@ -626,12 +626,12 @@ class AvlTree < BST
 
   private
 
-  def subtrees_height_diff
+  def balance_factor
     ((left&.height || 0) - (right&.height || 0)).abs
   end
 
   # PS: only cache methods which are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
-  enable_cache_for :balanced?, :subtrees_height_diff if CACHING
+  enable_cache_for :balanced?, :balance_factor if CACHING
 end
 
 # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
