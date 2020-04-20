@@ -587,6 +587,8 @@ class AvlTree < BST
   end
 
   def rebalance_after_deletion
+    return if balanced?
+
     puts "Rebalancing node #{value} after delete operation" if DEBUG
 
     found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
@@ -605,17 +607,17 @@ class AvlTree < BST
             z.rotate :right
           when [:left, :right]
             y.rotate :left
-            y.rebalance_after_deletion unless y.balanced?
+            y.rebalance_after_deletion
             z.rotate :right
           when [:right, :right]
             z.rotate :left
           when [:right, :left]
             y.rotate :right
-            y.rebalance_after_deletion unless y.balanced?
+            y.rebalance_after_deletion
             z.rotate :left
         end
 
-        z.rebalance_after_deletion unless z.balanced?
+        z.rebalance_after_deletion
       else
         raise "Unbalanced node found with value #{ancestors_path[-1].value}, but its height < 3 (#{z.height})"
       end
