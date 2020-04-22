@@ -8,7 +8,7 @@ require 'securerandom'
 class BTree
   DEBUG = true
   ASSERTIONS = true
-  T = 5   # Minimum degree.
+  T = 3   # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
@@ -20,11 +20,9 @@ class BTree
   def initialize(node_value_or_values, subtrees: nil, parent: nil)
     node_values = [*node_value_or_values]
 
-    raise "Subtrees size (#{subtrees.size}) must match number of nodes (#{values.size}) + 1" if subtrees && subtrees.size != node_values.size + 1
-
     self.parent = parent
     self.values = node_values
-    self.subtrees = subtrees || [nil] * (values.size + 1)
+    self.subtrees = subtrees || ([nil] * (values.size + 1))
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
@@ -41,8 +39,8 @@ class BTree
     y = subtrees[insertion_index]
 
     if leaf?
-      values.insert insertion_index, node_value
-      subtrees.insert insertion_index, nil
+      insert_value node_value, insertion_index
+      insert_subtree nil, insertion_index
 
       return self
     elsif y
@@ -108,15 +106,27 @@ class BTree
 
   attr_writer :parent
 
+  def insert_value(node_value, position)
+    raise "Maximum node size exceeded for subtree #{self.to_s} when inserting value `#{node_value}`" if node_size + 1 > NODES[:max]
+
+    values.insert position, node_value
+  end
+
+  def insert_subtree(subtree, position)
+    subtrees.insert position, subtree
+  end
+
   def subtrees=(new_subtrees)
+    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{node_size}) + 1" if new_subtrees.size != node_size + 1
+
     @subtrees = new_subtrees
 
     new_subtrees.each { |subtree| subtree&.parent = self }
   end
 
   def values=(new_values)
-    raise "Minimum value not reached for subtree #{self.to_s} when setting values = `#{values.join(', ')}`" if parent && new_values.size < NODES[:min]
-    raise "Maximum value exceeded for subtree #{self.to_s} when setting values = `#{values.join(', ')}`" if new_values.size > NODES[:max]
+    raise "Minimum node size not reached for subtree #{self.to_s} when setting values `#{values.join(', ')}`." if parent && new_values.size < NODES[:min]
+    raise "Maximum node size exceeded for subtree #{self.to_s} when setting values `#{values.join(', ')}`." if new_values.size > NODES[:max]
 
     @values = new_values
   end
@@ -124,7 +134,7 @@ class BTree
   def draw_graph_tree(g, root_node)
     subtrees.each_with_index do |subtree, index|
       if subtree
-        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree.to_s}" if subtree.parent != self
+        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree.to_s}." if subtree.parent != self
 
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
@@ -150,17 +160,18 @@ class BTree
     lowest_values = values[0..(NODES[:middle_index] - 1)]
     highest_values = values[(NODES[:middle_index] + 1)..-1]
 
+    # Top root node?
     if parent
-      # Non-top root node.
+      # No.
       parent_insertion_index = parent.find_insertion_index(node_value)
 
       # Move the middle value to its parent.
       raise "Full node `#{parent}` when trying to add value `#{middle_value}` during split." if parent.full?
-      parent.values.insert parent_insertion_index, middle_value
+      parent.insert_value middle_value, parent_insertion_index
 
       # Create lowest sub-tree.
       lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
-      parent.subtrees.insert parent_insertion_index, lowest_subtree
+      parent.insert_subtree lowest_subtree, parent_insertion_index
 
       highest_subtree = self
 
@@ -168,7 +179,7 @@ class BTree
       self.values = highest_values
       self.subtrees = subtrees[NODES[:middle_index] + 1..-1]
     else
-      # Top root node.
+      # Yes.
       lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
       highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
 
@@ -181,7 +192,7 @@ class BTree
 end
 
 @root = BTree.new(1)
-(2..64).each { |value| @root.add value }
+(2..129).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
 puts "Tree average node size: #{"%3.1f" % (@root.average_node_size)}"
