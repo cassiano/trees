@@ -8,7 +8,7 @@ require 'securerandom'
 class BTree
   DEBUG = true
   ASSERTIONS = true
-  T = 3   # Minimum degree.
+  T = 5   # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
@@ -78,6 +78,18 @@ class BTree
       (leaf? ? true : subtrees.all?(&:valid?))
   end
 
+  def total_node_size
+    node_size + (leaf? ? 0 : subtrees.map(&:total_node_size).reduce(:+))
+  end
+
+  def total_node_count
+    1 + (leaf? ? 0 : subtrees.map(&:total_node_count).reduce(:+))
+  end
+
+  def average_node_size
+    total_node_size.to_f / total_node_count
+  end
+
   def to_s
     { values: values, subtrees: subtrees.map(&:to_s) }
   end
@@ -138,14 +150,8 @@ class BTree
     lowest_values = values[0..(NODES[:middle_index] - 1)]
     highest_values = values[(NODES[:middle_index] + 1)..-1]
 
-    if !parent
-      # Top root node.
-      lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
-      highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
-
-      self.values = [middle_value]
-      self.subtrees = [lowest_subtree, highest_subtree]
-    else
+    if parent
+      # Non-top root node.
       parent_insertion_index = parent.find_insertion_index(node_value)
 
       # Move the middle value to its parent.
@@ -161,6 +167,13 @@ class BTree
       # Update the current node to include only the highest values (and corresponding sub-trees).
       self.values = highest_values
       self.subtrees = subtrees[NODES[:middle_index] + 1..-1]
+    else
+      # Top root node.
+      lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
+      highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
+
+      self.values = [middle_value]
+      self.subtrees = [lowest_subtree, highest_subtree]
     end
 
     [lowest_subtree, highest_subtree, middle_value]
@@ -171,3 +184,4 @@ end
 (2..64).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
+puts "Tree average node size: #{"%3.1f" % (@root.average_node_size)}"
