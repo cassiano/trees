@@ -28,9 +28,9 @@ class BTree
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
   def add(node_value)
     if full?
-      lowest_subtree, highest_subtree, middle_value = split_child(node_value)
+      minors_subtree, majors_subtree, middle_value = split_child(node_value)
 
-      target_subtree = node_value <= middle_value ? lowest_subtree : highest_subtree
+      target_subtree = node_value <= middle_value ? minors_subtree : majors_subtree
 
       target_subtree.add node_value
     else
@@ -158,8 +158,8 @@ class BTree
 
   def split_child(node_value)
     middle_value = values[NODES[:middle_index]]
-    lowest_values = values[0..(NODES[:middle_index] - 1)]
-    highest_values = values[(NODES[:middle_index] + 1)..-1]
+    minors_values = values[0..(NODES[:middle_index] - 1)]
+    majors_values = values[(NODES[:middle_index] + 1)..-1]
 
     # Top root node?
     if parent
@@ -170,25 +170,25 @@ class BTree
       raise "Full node #{parent} when trying to add value `#{middle_value}` during split." if parent.full?
       parent.insert_value middle_value, parent_insertion_index
 
-      # Create lowest sub-tree.
-      lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
-      parent.insert_subtree lowest_subtree, parent_insertion_index
+      # Create minors sub-tree.
+      minors_subtree = self.class.new(minors_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
+      parent.insert_subtree minors_subtree, parent_insertion_index
 
-      highest_subtree = self
+      majors_subtree = self
 
-      # Update the current node to include only the highest values (and corresponding sub-trees).
-      self.values = highest_values
+      # Update the current node to include only the majors' values (and corresponding sub-trees).
+      self.values = majors_values
       self.subtrees = subtrees[NODES[:middle_index] + 1..-1]
     else
       # Yes.
-      lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
-      highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
+      minors_subtree = self.class.new(minors_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
+      majors_subtree = self.class.new(majors_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
 
       self.values = [middle_value]
-      self.subtrees = [lowest_subtree, highest_subtree]
+      self.subtrees = [minors_subtree, majors_subtree]
     end
 
-    [lowest_subtree, highest_subtree, middle_value]
+    [minors_subtree, majors_subtree, middle_value]
   end
 end
 
