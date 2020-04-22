@@ -4,10 +4,10 @@
 require 'ruby-graphviz'
 require 'securerandom'
 
-DEBUG = true
-
 # https://www.geeksforgeeks.org/introduction-of-b-tree-2/
 class BTree
+  DEBUG = true
+  ASSERTIONS = true
   T = 3   # Minimum degree.
   NODES = {
     min: T - 1,
@@ -15,22 +15,16 @@ class BTree
     middle_index: T - 1,
   }
 
-  attr_accessor :values, :subtrees, :parent
+  attr_reader :values, :subtrees, :parent
 
   def initialize(node_value_or_values, subtrees: nil, parent: nil)
     node_values = [*node_value_or_values]
 
-    if node_values.size > NODES[:max]
-      raise "Exceeded maximum node size (#{NODES[:max]}) when creating new B-tree with initial values `#{node_values}` and parent `#{parent}`."
-    elsif node_values.size < NODES[:min] && parent
-      raise "Minimum node size (#{NODES[:min]}) not reached when creating new (non-top root) B-tree with initial values `#{node_values}` and parent `#{parent}`."
-    end
+    raise "Subtrees size (#{subtrees.size}) must match number of nodes (#{values.size}) + 1" if subtrees && subtrees.size != node_values.size + 1
 
-    raise "Subtrees size (#{subtrees.size}) must match number of nodes (values.size) + 1" if subtrees && subtrees.size != node_values.size + 1
-
-    @values = node_values
-    @subtrees = subtrees || [nil] * (values.size + 1)
-    @parent = parent
+    self.parent = parent
+    self.values = node_values
+    self.subtrees = subtrees || [nil] * (values.size + 1)
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
@@ -78,6 +72,12 @@ class BTree
     !leaf?
   end
 
+  def valid?
+    subtrees.size == node_size + 1 &&
+      ((parent ? NODES[:min] : 1)..NODES[:max]).include?(node_size) &&
+      (leaf? ? true : subtrees.all?(&:valid?))
+  end
+
   def to_s
     { values: values, subtrees: subtrees.map(&:to_s) }
   end
@@ -94,10 +94,25 @@ class BTree
 
   protected
 
+  attr_writer :parent
+
+  def subtrees=(new_subtrees)
+    @subtrees = new_subtrees
+
+    new_subtrees.each { |subtree| subtree&.parent = self }
+  end
+
+  def values=(new_values)
+    raise "Minimum value not reached for subtree #{self.to_s} when setting values = `#{values.join(', ')}`" if parent && new_values.size < NODES[:min]
+    raise "Maximum value exceeded for subtree #{self.to_s} when setting values = `#{values.join(', ')}`" if new_values.size > NODES[:max]
+
+    @values = new_values
+  end
+
   def draw_graph_tree(g, root_node)
     subtrees.each_with_index do |subtree, index|
       if subtree
-        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree}" if subtree.parent != self
+        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree.to_s}" if subtree.parent != self
 
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
@@ -126,9 +141,7 @@ class BTree
     if !parent
       # Top root node.
       lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
-      lowest_subtree.subtrees.each { |subtree| subtree&.parent = lowest_subtree }
       highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
-      highest_subtree.subtrees.each { |subtree| subtree&.parent = highest_subtree }
 
       self.values = [middle_value]
       self.subtrees = [lowest_subtree, highest_subtree]
@@ -141,7 +154,6 @@ class BTree
 
       # Create lowest sub-tree.
       lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
-      lowest_subtree.subtrees.each { |subtree| subtree&.parent = lowest_subtree }
       parent.subtrees.insert parent_insertion_index, lowest_subtree
 
       highest_subtree = self
@@ -158,3 +170,4 @@ end
 @root = BTree.new(1)
 (2..64).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
+puts @root.valid?
