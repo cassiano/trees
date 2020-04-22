@@ -34,7 +34,7 @@ class BTree
 
       target_subtree.add node_value
     else
-      insertion_index = find_insertion_index(node_value)
+      insertion_index = find_subtree_index(node_value)
       y = subtrees[insertion_index]
 
       if leaf?
@@ -62,8 +62,12 @@ class BTree
     subtrees.size
   end
 
-  def find_insertion_index(node_value)
+  def find_subtree_index(node_value)
     values.index { |v| v >= node_value } || nodes_count
+  end
+
+  def find_subtree(node_value)
+    subtrees[find_subtree_index(node_value)]
   end
 
   def leaf?
@@ -76,12 +80,12 @@ class BTree
 
   def valid?
     subtrees_count == nodes_count + 1 &&
-      ((parent ? NODES[:min] : 1)..NODES[:max]).include?(nodes_count) &&
+      within_size_limits? &&
       (leaf? ? true : subtrees.all?(&:valid?))
   end
 
-  def total_node_count
-    nodes_count + (leaf? ? 0 : subtrees.map(&:total_node_count).reduce(:+))
+  def total_nodes_count
+    nodes_count + (leaf? ? 0 : subtrees.map(&:total_nodes_count).reduce(:+))
   end
 
   def total_nodes
@@ -89,7 +93,15 @@ class BTree
   end
 
   def average_nodes_count
-    total_node_count.to_f / total_nodes
+    total_nodes_count.to_f / total_nodes
+  end
+
+  def find(node_value)
+    if values.index(node_value)
+      self
+    elsif non_leaf?
+      find_subtree(node_value).find node_value
+    end
   end
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
@@ -110,6 +122,10 @@ class BTree
   protected
 
   attr_writer :parent
+
+  def within_size_limits?
+    ((parent ? NODES[:min] : 1)..NODES[:max]).include? nodes_count
+  end
 
   def insert_value(node_value, position)
     raise "Maximum node size exceeded for subtree #{self} when inserting value `#{node_value}`." if nodes_count + 1 > NODES[:max]
@@ -149,11 +165,11 @@ class BTree
         elsif index == subtrees_count - 1
           edge_label = ['≻', values[index - 1]].join
         else
-          edge_label = [values[index - 1], '...', values[index]].join
+          edge_label = [' ', values[index - 1], '...', values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
-        g.add_edges root_node, current_node, label: ' ' + edge_label
+        g.add_edges root_node, current_node, label: edge_label
 
         subtree.draw_graph_tree g, current_node
       elsif !leaf?
@@ -163,43 +179,57 @@ class BTree
   end
 
   def split_child(node_value)
-    middle_value = values[NODES[:middle_index]]
-    minors_values = values[0..(NODES[:middle_index] - 1)]
-    majors_values = values[(NODES[:middle_index] + 1)..-1]
+    splitted = split_node_in_middle
+    splitted_values = splitted[:values]
+    splitted_subtrees = splitted[:subtrees]
 
     # Top root node?
     if parent
       # No.
-      parent_insertion_index = parent.find_insertion_index(node_value)
+      parent_insertion_index = parent.find_subtree_index(node_value)
 
       # Move the middle value to its parent.
-      raise "Full node #{parent} when trying to add value `#{middle_value}` during split." if parent.full?
-      parent.insert_value middle_value, parent_insertion_index
+      raise "Full node #{parent} when trying to add value `#{splitted[:middle_value]}` during split." if parent.full?
+      parent.insert_value splitted[:middle_value], parent_insertion_index
 
       # Create minors sub-tree.
-      minors_subtree = self.class.new(minors_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
+      minors_subtree = self.class.new(splitted_values[:minors], subtrees: splitted_subtrees[:minors], parent: parent)
       parent.insert_subtree minors_subtree, parent_insertion_index
 
       majors_subtree = self
 
       # Update the current node to include only the majors' values (and corresponding sub-trees).
-      self.values = majors_values
-      self.subtrees = subtrees[NODES[:middle_index] + 1..-1]
+      self.values = splitted_values[:majors]
+      self.subtrees = splitted_subtrees[:majors]
     else
       # Yes.
-      minors_subtree = self.class.new(minors_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
-      majors_subtree = self.class.new(majors_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
+      minors_subtree = self.class.new(splitted_values[:minors], subtrees: splitted_subtrees[:minors], parent: self)
+      majors_subtree = self.class.new(splitted_values[:majors], subtrees: splitted_subtrees[:majors], parent: self)
 
-      self.values = [middle_value]
+      self.values = [splitted[:middle_value]]
       self.subtrees = [minors_subtree, majors_subtree]
     end
 
-    [minors_subtree, majors_subtree, middle_value]
+    [minors_subtree, majors_subtree, splitted[:middle_value]]
+  end
+
+  def split_node_in_middle
+    {
+      middle_value: values[NODES[:middle_index]],
+      values: {
+        minors: values[0..(NODES[:middle_index] - 1)],
+        majors: values[(NODES[:middle_index] + 1)..-1],
+      },
+      subtrees: {
+        minors: subtrees[0..NODES[:middle_index]],
+        majors: subtrees[NODES[:middle_index] + 1..-1],
+      }
+    }
   end
 end
 
 @root = BTree.new(1)
-(2..64).each { |value| @root.add value }
+(2..2**6).each_with_index { |value, i| puts i if i % 1000 == 0; @root.add value }
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
 puts "Tree average node size: #{"%3.1f" % (@root.average_nodes_count)}"
