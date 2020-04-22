@@ -316,15 +316,15 @@ class Tree
   end
 
   def draw_graph_tree(g, root_node)
-    [left, right].each do |sub_tree|
-      if sub_tree
+    [left, right].each do |subtree|
+      if subtree
         # https://www.graphviz.org/doc/info/shapes.html
-        current_node = g.add_nodes(SecureRandom.uuid, label: sub_tree.value.to_s, shape: sub_tree.leaf? ? :doublecircle : :circle)
+        current_node = g.add_nodes(SecureRandom.uuid, label: subtree.value.to_s, shape: subtree.leaf? ? :doublecircle : :circle)
 
         # # Draw the arrow pointing from the root node to this sub-tree.
-        g.add_edges root_node, current_node, label: [' ', sub_tree == left ? '≼' : '≻', ' ', value].join
+        g.add_edges root_node, current_node, label: [' ', subtree == left ? '≼' : '≻', ' ', value].join
 
-        sub_tree.draw_graph_tree g, current_node
+        subtree.draw_graph_tree g, current_node
       elsif !leaf?
         g.add_edges root_node, g.add_nodes(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
       end
