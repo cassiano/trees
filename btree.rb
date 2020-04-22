@@ -144,10 +144,12 @@ class BTree
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
 
-        if index < subtrees_count - 1
+        if index == 0
           edge_label = ['≼', values[index]].join
-        else
+        elsif index == subtrees_count - 1
           edge_label = ['≻', values[index - 1]].join
+        else
+          edge_label = [values[index - 1], '...', values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
