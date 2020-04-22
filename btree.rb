@@ -45,7 +45,7 @@ class BTree
       elsif y
         y.add node_value
       else
-        raise "Empty node reached when adding value `#{node_value}` to non-leaf node `#{self.to_s}`."
+        raise "Empty node reached when adding value `#{node_value}` to non-leaf node #{self}."
       end
     end
   end
@@ -88,8 +88,9 @@ class BTree
     total_node_size.to_f / total_node_count
   end
 
+  # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { values: values, subtrees: subtrees.map(&:to_s) }
+    { values: values, subtrees: subtrees.map(&:to_s) }.to_s
   end
 
   alias_method :inspect, :to_s
@@ -107,7 +108,7 @@ class BTree
   attr_writer :parent
 
   def insert_value(node_value, position)
-    raise "Maximum node size exceeded for subtree #{self.to_s} when inserting value `#{node_value}`" if node_size + 1 > NODES[:max]
+    raise "Maximum node size exceeded for subtree #{self} when inserting value `#{node_value}`." if node_size + 1 > NODES[:max]
 
     values.insert position, node_value
   end
@@ -117,7 +118,7 @@ class BTree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{node_size}) + 1" if new_subtrees.size != node_size + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{node_size}) + 1." if new_subtrees.size != node_size + 1
 
     @subtrees = new_subtrees
 
@@ -125,8 +126,8 @@ class BTree
   end
 
   def values=(new_values)
-    raise "Minimum node size not reached for subtree #{self.to_s} when setting values `#{values.join(', ')}`." if parent && new_values.size < NODES[:min]
-    raise "Maximum node size exceeded for subtree #{self.to_s} when setting values `#{values.join(', ')}`." if new_values.size > NODES[:max]
+    raise "Minimum node size not reached for subtree #{self} when setting values `#{values.join(', ')}`." if parent && new_values.size < NODES[:min]
+    raise "Maximum node size exceeded for subtree #{self} when setting values `#{values.join(', ')}`." if new_values.size > NODES[:max]
 
     @values = new_values
   end
@@ -134,7 +135,7 @@ class BTree
   def draw_graph_tree(g, root_node)
     subtrees.each_with_index do |subtree, index|
       if subtree
-        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree.to_s}." if subtree.parent != self
+        raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
 
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
@@ -166,7 +167,7 @@ class BTree
       parent_insertion_index = parent.find_insertion_index(node_value)
 
       # Move the middle value to its parent.
-      raise "Full node `#{parent}` when trying to add value `#{middle_value}` during split." if parent.full?
+      raise "Full node #{parent} when trying to add value `#{middle_value}` during split." if parent.full?
       parent.insert_value middle_value, parent_insertion_index
 
       # Create lowest sub-tree.
