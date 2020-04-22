@@ -35,47 +35,26 @@ class BTree
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
   def add(node_value)
-    # x = self
-    insertion_index = values.index { |v| v >= node_value } || node_size
+    if full?
+      lowest_subtree, highest_subtree, middle_value = split_child(node_value)
+
+      target_subtree = node_value <= middle_value ? lowest_subtree : highest_subtree
+
+      return target_subtree.add(node_value)
+    end
+
+    insertion_index = find_insertion_index(node_value)
     y = subtrees[insertion_index]
 
     if leaf?
-      if !full?
-        values.insert insertion_index, node_value
-        subtrees.insert insertion_index, nil
-      else
-        # Split it.
-        if !parent
-          # Top root node.
-          _, _, middle_value = split_child(insertion_index)
+      values.insert insertion_index, node_value
+      subtrees.insert insertion_index, nil
 
-          subtrees[node_value <= middle_value ? 0 : 1].add node_value
-        else
-          raise "Leaf and full (non-top root) node `#{self}` reached when adding `#{node_value}`."
-        end
-      end
+      return self
     elsif y
-      if full?
-        lowest_subtree, highest_subtree, middle_value = split_child(insertion_index)
-
-        if node_value <= middle_value
-          y = lowest_subtree
-          insertion_index = 0
-        else
-          y = highest_subtree
-          insertion_index = 1
-        end
-      end
-
-      if y.full?
-        lowest_subtree, highest_subtree, middle_value = y.split_child(insertion_index)
-
-        (node_value <= middle_value ? lowest_subtree : highest_subtree).add node_value
-      else
-        y.add node_value
-      end
+      y.add node_value
     else
-      raise "Empty node reached when adding value `#{node_value}` to non-leaf node `#{self}`."
+      raise "Empty node reached when adding value `#{node_value}` to non-leaf node `#{self.to_s}`."
     end
   end
 
@@ -85,6 +64,10 @@ class BTree
 
   def node_size
     values.size
+  end
+
+  def find_insertion_index(node_value)
+    values.index { |v| v >= node_value } || node_size
   end
 
   def leaf?
@@ -112,44 +95,56 @@ class BTree
   protected
 
   def draw_graph_tree(g, root_node)
-    subtrees.each do |sub_tree|
-      if sub_tree
+    subtrees.each_with_index do |subtree, index|
+      if subtree
+        raise "Invalid parent #{parent.to_s} for sub-tree #{subtree}" if subtree.parent != self
+
         # https://www.graphviz.org/doc/info/shapes.html
-        current_node = g.add_nodes(SecureRandom.uuid, label: sub_tree.values.join(', '), shape: :ellipse)
+        current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
+
+        if index < subtrees.size - 1
+          edge_label = ['≼', values[index]].join
+        else
+          edge_label = ['≻', values[index - 1]].join
+        end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
-        # g.add_edges root_node, current_node, label: [' ', sub_tree == left ? '≼' : '≻', ' ', value].join
-        g.add_edges root_node, current_node
+        g.add_edges root_node, current_node, label: ' ' + edge_label
 
-        sub_tree.draw_graph_tree g, current_node
+        subtree.draw_graph_tree g, current_node
       elsif !leaf?
         g.add_edges root_node, g.add_nodes(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
       end
     end
   end
 
-  def split_child(insertion_index)
+  def split_child(node_value)
     middle_value = values[NODES[:middle_index]]
     lowest_values = values[0..(NODES[:middle_index] - 1)]
     highest_values = values[(NODES[:middle_index] + 1)..-1]
 
     if !parent
       # Top root node.
+      lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: self)
+      lowest_subtree.subtrees.each { |subtree| subtree&.parent = lowest_subtree }
+      highest_subtree = self.class.new(highest_values, subtrees: subtrees[NODES[:middle_index] + 1..-1], parent: self)
+      highest_subtree.subtrees.each { |subtree| subtree&.parent = highest_subtree }
+
       self.values = [middle_value]
-
-      lowest_subtree = self.class.new(lowest_values, parent: self)
-      highest_subtree = self.class.new(highest_values, parent: self)
-
       self.subtrees = [lowest_subtree, highest_subtree]
     else
+      parent_insertion_index = parent.find_insertion_index(node_value)
+
       # Move the middle value to its parent.
       raise "Full node `#{parent}` when trying to add value `#{middle_value}` during split." if parent.full?
-      parent.values.insert insertion_index, middle_value
+      parent.values.insert parent_insertion_index, middle_value
 
       # Create lowest sub-tree.
       lowest_subtree = self.class.new(lowest_values, subtrees: subtrees[0..NODES[:middle_index]], parent: parent)
+      lowest_subtree.subtrees.each { |subtree| subtree&.parent = lowest_subtree }
+      parent.subtrees.insert parent_insertion_index, lowest_subtree
+
       highest_subtree = self
-      parent.subtrees.insert insertion_index, lowest_subtree
 
       # Update the current node to include only the highest values (and corresponding sub-trees).
       self.values = highest_values
@@ -161,5 +156,5 @@ class BTree
 end
 
 @root = BTree.new(1)
-(2..19).each { |value| @root.add value }
+(2..64).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
