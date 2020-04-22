@@ -68,8 +68,8 @@ class Tree
   attr_accessor :value
   attr_reader :left, :right, :parent
 
-  def initialize(value, left: nil, right: nil)
-    self.value = value
+  def initialize(node_value, left: nil, right: nil)
+    self.value = node_value
     self.left = left
     self.right = right
 
@@ -498,9 +498,9 @@ class AvlTree < BST
     end
   end
 
-  # An AVL tree is considered balanced when differences between heights of left and right subtrees for every node is less than or equal to 1.
+  # An AVL tree is considered balanced when differences between heights of left and right subtrees (called the "balance factor") for every node is less than or equal to 1.
   def balanced?
-    balance_factor <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # Do not use `left&.balanced? || true`.
+    balance_factor <= 1 && (left ? left.balanced? : true) && (right ? right.balanced? : true)   # NEVER use `left&.balanced? || true`, given `balanced?` is a predicate.
   end
 
   protected
@@ -556,27 +556,27 @@ class AvlTree < BST
       found_unbalanced_node, ancestors_path = unbalanced_ancestors_path
 
       if found_unbalanced_node
-        if ancestors_path.size >= 3
-          z = ancestors_path[-1]
-          y = ancestors_path[-2]
-          x = ancestors_path[-3]
+        if ASSERTIONS
+          raise "Unbalanced node found with value #{ancestors_path[-1].value}, but ancestors path size is < 3 (#{ancestors_path.size})" if ancestors_path.size < 3
+        end
 
-          puts "Unbalanced node found with value #{z.value}" if DEBUG
+        z = ancestors_path[-1]
+        y = ancestors_path[-2]
+        x = ancestors_path[-3]
 
-          case [y.descendant_type, x.descendant_type]
-            when [:left, :left]
-              z.rotate :right
-            when [:left, :right]
-              y.rotate :left
-              z.rotate :right
-            when [:right, :right]
-              z.rotate :left
-            when [:right, :left]
-              y.rotate :right
-              z.rotate :left
-          end
-        else
-          raise "Unbalanced node found with value #{ancestors_path[-1].value}, but ancestors path size is < 3 (#{ancestors_path.size})"
+        puts "Unbalanced node found with value #{z.value}" if DEBUG
+
+        case [y.descendant_type, x.descendant_type]
+          when [:left, :left]
+            z.rotate :right
+          when [:left, :right]
+            y.rotate :left
+            z.rotate :right
+          when [:right, :right]
+            z.rotate :left
+          when [:right, :left]
+            y.rotate :right
+            z.rotate :left
         end
       else
         puts "No unbalanced nodes found!" if DEBUG
@@ -598,29 +598,29 @@ class AvlTree < BST
 
       puts "Unbalanced node found with value #{z.value}" if DEBUG
 
-      if z.height >= 3
-        y = z.larger_height_child
-        x = y.larger_height_child
-
-        case [y.descendant_type, x.descendant_type]
-          when [:left, :left]
-            z.rotate :right
-          when [:left, :right]
-            y.rotate :left
-            y.rebalance_after_deletion
-            z.rotate :right
-          when [:right, :right]
-            z.rotate :left
-          when [:right, :left]
-            y.rotate :right
-            y.rebalance_after_deletion
-            z.rotate :left
-        end
-
-        z.rebalance_after_deletion
-      else
-        raise "Unbalanced node found with value #{ancestors_path[-1].value}, but its height < 3 (#{z.height})"
+      if ASSERTIONS
+        raise "Unbalanced node found with value #{ancestors_path[-1].value}, but its height < 3 (#{z.height})" if z.height < 3
       end
+
+      y = z.larger_height_child
+      x = y.larger_height_child
+
+      case [y.descendant_type, x.descendant_type]
+        when [:left, :left]
+          z.rotate :right
+        when [:left, :right]
+          y.rotate :left
+          y.rebalance_after_deletion
+          z.rotate :right
+        when [:right, :right]
+          z.rotate :left
+        when [:right, :left]
+          y.rotate :right
+          y.rebalance_after_deletion
+          z.rotate :left
+      end
+
+      z.rebalance_after_deletion
     else
       puts "No unbalanced nodes found!" if DEBUG
     end
