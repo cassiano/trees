@@ -54,12 +54,16 @@ class BTree
     values.size == NODES[:max]
   end
 
-  def node_size
+  def nodes_count
     values.size
   end
 
+  def subtrees_count
+    subtrees.size
+  end
+
   def find_insertion_index(node_value)
-    values.index { |v| v >= node_value } || node_size
+    values.index { |v| v >= node_value } || nodes_count
   end
 
   def leaf?
@@ -71,21 +75,21 @@ class BTree
   end
 
   def valid?
-    subtrees.size == node_size + 1 &&
-      ((parent ? NODES[:min] : 1)..NODES[:max]).include?(node_size) &&
+    subtrees_count == nodes_count + 1 &&
+      ((parent ? NODES[:min] : 1)..NODES[:max]).include?(nodes_count) &&
       (leaf? ? true : subtrees.all?(&:valid?))
   end
 
-  def total_node_size
-    node_size + (leaf? ? 0 : subtrees.map(&:total_node_size).reduce(:+))
-  end
-
   def total_node_count
-    1 + (leaf? ? 0 : subtrees.map(&:total_node_count).reduce(:+))
+    nodes_count + (leaf? ? 0 : subtrees.map(&:total_node_count).reduce(:+))
   end
 
-  def average_node_size
-    total_node_size.to_f / total_node_count
+  def total_nodes
+    1 + (leaf? ? 0 : subtrees.map(&:total_nodes).reduce(:+))
+  end
+
+  def average_nodes_count
+    total_node_count.to_f / total_nodes
   end
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
@@ -108,7 +112,7 @@ class BTree
   attr_writer :parent
 
   def insert_value(node_value, position)
-    raise "Maximum node size exceeded for subtree #{self} when inserting value `#{node_value}`." if node_size + 1 > NODES[:max]
+    raise "Maximum node size exceeded for subtree #{self} when inserting value `#{node_value}`." if nodes_count + 1 > NODES[:max]
 
     values.insert position, node_value
   end
@@ -118,7 +122,7 @@ class BTree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{node_size}) + 1." if new_subtrees.size != node_size + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{nodes_count}) + 1." if new_subtrees.size != nodes_count + 1
 
     @subtrees = new_subtrees
 
@@ -140,7 +144,7 @@ class BTree
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
 
-        if index < subtrees.size - 1
+        if index < subtrees_count - 1
           edge_label = ['≼', values[index]].join
         else
           edge_label = ['≻', values[index - 1]].join
@@ -196,4 +200,4 @@ end
 (2..64).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
-puts "Tree average node size: #{"%3.1f" % (@root.average_node_size)}"
+puts "Tree average node size: #{"%3.1f" % (@root.average_nodes_count)}"
