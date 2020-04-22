@@ -22,7 +22,7 @@ class BTree
 
     self.parent = parent
     self.values = node_values
-    self.subtrees = subtrees || ([nil] * (values.size + 1))
+    self.subtrees = subtrees || [nil] * (values.size + 1)
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
@@ -32,21 +32,21 @@ class BTree
 
       target_subtree = node_value <= middle_value ? lowest_subtree : highest_subtree
 
-      return target_subtree.add(node_value)
-    end
-
-    insertion_index = find_insertion_index(node_value)
-    y = subtrees[insertion_index]
-
-    if leaf?
-      insert_value node_value, insertion_index
-      insert_subtree nil, insertion_index
-
-      return self
-    elsif y
-      y.add node_value
+      target_subtree.add node_value
     else
-      raise "Empty node reached when adding value `#{node_value}` to non-leaf node `#{self.to_s}`."
+      insertion_index = find_insertion_index(node_value)
+      y = subtrees[insertion_index]
+
+      if leaf?
+        insert_value node_value, insertion_index
+        insert_subtree nil, insertion_index
+
+        self
+      elsif y
+        y.add node_value
+      else
+        raise "Empty node reached when adding value `#{node_value}` to non-leaf node `#{self.to_s}`."
+      end
     end
   end
 
@@ -192,7 +192,7 @@ class BTree
 end
 
 @root = BTree.new(1)
-(2..129).each { |value| @root.add value }
+(2..64).each { |value| @root.add value }
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
 puts "Tree average node size: #{"%3.1f" % (@root.average_node_size)}"
