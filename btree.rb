@@ -74,6 +74,7 @@ class BTree
   def valid?
     subtrees_count == nodes_count + 1 &&
       within_size_limits? &&
+      (tree_height = height) && subtrees.all? { |subtree| (subtree&.height || 0) == tree_height - 1 } &&
       (leaf? ? true : subtrees.all?(&:valid?))
   end
 
@@ -195,20 +196,20 @@ class BTree
         # https://www.graphviz.org/doc/info/shapes.html
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
 
-        if index == 0
-          descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index
-
-          edge_label = descendant_index_ancestor ?
-            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, values[index]].join :
+        edge_label = if index == 0
+          if (descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index)
+            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, values[index]].join
+          else
             [ELLIPSIS, values[index]].join
+          end
         elsif index == subtrees_count - 1
-          descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index
-
-          edge_label = descendant_index_ancestor ?
-            [values[index - 1], ELLIPSIS, descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join :
+          if (descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index)
+            [values[index - 1], ELLIPSIS, descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join
+          else
             [values[index - 1], ELLIPSIS].join
+          end
         else
-          edge_label = [values[index - 1], ELLIPSIS, values[index]].join
+          [values[index - 1], ELLIPSIS, values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
@@ -277,7 +278,6 @@ class BTree
 
     loop do
       break if !current.parent || current.descendant_index > 0
-
       current = current.parent
     end
 
@@ -289,7 +289,6 @@ class BTree
 
     loop do
       break if !current.parent || current.descendant_index < current.parent.nodes_count
-
       current = current.parent
     end
 
