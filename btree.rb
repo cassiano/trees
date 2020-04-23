@@ -14,6 +14,7 @@ class BTree
     max: 2 * T - 1,
     middle_index: T - 1,
   }
+  ELLIPSIS = '…'
 
   attr_reader :values, :subtrees, :parent
 
@@ -198,16 +199,16 @@ class BTree
           descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index
 
           edge_label = descendant_index_ancestor ?
-            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], '…', values[index]].join :
-            ['…', values[index]].join
+            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, values[index]].join :
+            [ELLIPSIS, values[index]].join
         elsif index == subtrees_count - 1
           descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index
 
           edge_label = descendant_index_ancestor ?
-            [values[index - 1], '…', descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join :
-            [values[index - 1], '…'].join
+            [values[index - 1], ELLIPSIS, descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join :
+            [values[index - 1], ELLIPSIS].join
         else
-          edge_label = [values[index - 1], '…', values[index]].join
+          edge_label = [values[index - 1], ELLIPSIS, values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
@@ -296,7 +297,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 9 - 1)).to_a.shuffle
+items = (1..(2 ** 6 - 1)).to_a.shuffle
 
 p items
 
