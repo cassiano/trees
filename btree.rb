@@ -102,6 +102,10 @@ class BTree
     parent&.find_subtree_index values[0]    # The value is not relevant. We could have picked any of the current node.
   end
 
+  def height
+    (subtrees[0]&.height || 0) + 1
+  end
+
   # def pre_order
   #   non_leaf? ?
   #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
