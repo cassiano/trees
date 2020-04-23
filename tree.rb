@@ -271,8 +271,9 @@ class Tree
     initialize_cache
   end
 
+  # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { value: value, parent: parent&.value, left: left&.value, right: right&.value }
+    { value: value, parent: parent&.value, left: left&.value, right: right&.value }.to_s
   end
 
   alias_method :inspect, :to_s
