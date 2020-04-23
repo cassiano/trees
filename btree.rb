@@ -62,14 +62,6 @@ class BTree
     subtrees.size
   end
 
-  def find_subtree_index(node_value)
-    values.index { |v| v >= node_value } || nodes_count
-  end
-
-  def find_subtree(node_value)
-    subtrees[find_subtree_index(node_value)]
-  end
-
   def leaf?
     subtrees.all? &:nil?
   end
@@ -97,12 +89,42 @@ class BTree
   end
 
   def find(node_value)
-    if values.index(node_value)
+    subtree_index = find_subtree_index(node_value)
+
+    if subtree_index < nodes_count && values[subtree_index] == node_value
       self
     elsif non_leaf?
-      find_subtree(node_value).find node_value
+      subtrees[subtree_index].find node_value
     end
   end
+
+  def descendant_index
+    parent&.find_subtree_index values[0]    # The value is not relevant. We could have picked any of the current node.
+  end
+
+  # def pre_order
+  #   non_leaf? ?
+  #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
+  #       memo + (i < nodes_count ? [values[i]] : []) + subtree.pre_order
+  #     end :
+  #     values
+  # end
+
+  def in_order
+    non_leaf? ?
+      subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
+        memo + subtree.in_order + (i < nodes_count ? [values[i]] : [])
+      end :
+      values
+  end
+
+  # def post_order
+  #   non_leaf? ?
+  #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
+  #       memo + subtree.post_order + (i < nodes_count ? [values[i]] : [])
+  #     end :
+  #     values
+  # end
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
@@ -122,6 +144,14 @@ class BTree
   protected
 
   attr_writer :parent
+
+  def find_subtree_index(node_value)
+    values.index { |v| node_value <= v } || nodes_count
+  end
+
+  def find_subtree(node_value)
+    subtrees[find_subtree_index(node_value)]
+  end
 
   def within_size_limits?
     ((parent ? NODES[:min] : 1)..NODES[:max]).include? nodes_count
@@ -161,11 +191,11 @@ class BTree
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
 
         if index == 0
-          edge_label = ['≼', values[index]].join
+          edge_label = parent && descendant_index > 0 ? ['≻', parent.values[descendant_index - 1], "\n≼", values[index]].join : ['≼', values[index]].join
         elsif index == subtrees_count - 1
-          edge_label = ['≻', values[index - 1]].join
+          edge_label = parent && descendant_index < parent.nodes_count ? ['≻', values[index - 1], "\n≼", parent.values[descendant_index]].join : ['≻', values[index - 1]].join
         else
-          edge_label = [' ', values[index - 1], '...', values[index]].join
+          edge_label = ['≻', values[index - 1], "\n≼", values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
@@ -228,8 +258,18 @@ class BTree
   end
 end
 
-@root = BTree.new(1)
-(2..2**6).each_with_index { |value, i| puts i if i % 1000 == 0; @root.add value }
+items = (1..(2 ** 6 - 1)).to_a.shuffle
+
+p items
+
+@root = BTree.new(items.shift)
+
+items.each_with_index do |item, i|
+  puts i if i % 1000 == 0
+
+  @root.add item
+end
+
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
 puts "Tree average node size: #{"%3.1f" % (@root.average_nodes_count)}"
