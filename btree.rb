@@ -191,11 +191,19 @@ class BTree
         current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
 
         if index == 0
-          edge_label = parent && descendant_index > 0 ? ['≻', parent.values[descendant_index - 1], "\n≼", values[index]].join : ['≼', values[index]].join
+          descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index
+
+          edge_label = descendant_index_ancestor ?
+            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], '…', values[index]].join :
+            ['…', values[index]].join
         elsif index == subtrees_count - 1
-          edge_label = parent && descendant_index < parent.nodes_count ? ['≻', values[index - 1], "\n≼", parent.values[descendant_index]].join : ['≻', values[index - 1]].join
+          descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index
+
+          edge_label = descendant_index_ancestor ?
+            [values[index - 1], '…', descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join :
+            [values[index - 1], '…'].join
         else
-          edge_label = ['≻', values[index - 1], "\n≼", values[index]].join
+          edge_label = [values[index - 1], '…', values[index]].join
         end
 
         # # Draw the arrow pointing from the root node to this sub-tree.
@@ -207,6 +215,8 @@ class BTree
       end
     end
   end
+
+  private
 
   def split_child(node_value)
     splitted = split_node_in_middle
@@ -256,9 +266,33 @@ class BTree
       }
     }
   end
+
+  def find_first_ancestor_with_non_minimum_descendant_index
+    current = self
+
+    loop do
+      break if !current.parent || current.descendant_index > 0
+
+      current = current.parent
+    end
+
+    current if current.parent
+  end
+
+  def find_first_ancestor_with_non_maximum_descendant_index
+    current = self
+
+    loop do
+      break if !current.parent || current.descendant_index < current.parent.nodes_count
+
+      current = current.parent
+    end
+
+    current if current.parent
+  end
 end
 
-items = (1..(2 ** 6 - 1)).to_a.shuffle
+items = (1..(2 ** 9 - 1)).to_a.shuffle
 
 p items
 
