@@ -197,14 +197,14 @@ class BTree
         current_key = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: :ellipse)
 
         edge_label = if index == 0
-          if (descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index)
-            [descendant_index_ancestor.parent.keys[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, keys[index]].join
+          if (ancestor_key = find_first_ancestor_key_with_non_minimum_descendant_index)
+            [ancestor_key, ELLIPSIS, keys[index]].join
           else
             [ELLIPSIS, keys[index]].join
           end
         elsif index == subtrees_count - 1
-          if (descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index)
-            [keys[index - 1], ELLIPSIS, descendant_index_ancestor.parent.keys[descendant_index_ancestor.descendant_index]].join
+          if (ancestor_key = find_first_ancestor_key_with_non_maximum_descendant_index)
+            [keys[index - 1], ELLIPSIS, ancestor_key].join
           else
             [keys[index - 1], ELLIPSIS].join
           end
@@ -273,24 +273,24 @@ class BTree
     }
   end
 
-  def find_first_ancestor_with_non_minimum_descendant_index
+  def find_first_ancestor_key_with_non_minimum_descendant_index
     current = self
 
     while current.parent && current.descendant_index == 0
       current = current.parent
     end
 
-    current if current.parent
+    current.parent.keys[current.descendant_index - 1] if current.parent
   end
 
-  def find_first_ancestor_with_non_maximum_descendant_index
+  def find_first_ancestor_key_with_non_maximum_descendant_index
     current = self
 
     while current.parent && current.descendant_index == current.parent.keys_count
       current = current.parent
     end
 
-    current if current.parent
+    current.parent.keys[current.descendant_index] if current.parent
   end
 end
 
