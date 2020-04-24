@@ -16,47 +16,47 @@ class BTree
   }
   ELLIPSIS = '…'
 
-  attr_reader :values, :subtrees, :parent
+  attr_reader :keys, :subtrees, :parent
 
-  def initialize(node_value_or_values, subtrees: nil, parent: nil)
-    node_values = [*node_value_or_values]
+  def initialize(key_or_keys, subtrees: nil, parent: nil)
+    keys = [*key_or_keys]
 
     self.parent = parent
-    self.values = node_values
-    self.subtrees = subtrees || [nil] * (values.size + 1)
+    self.keys = keys
+    self.subtrees = subtrees || [nil] * (keys.size + 1)
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
-  def add(node_value)
+  def add(key)
     if full?
-      minors_subtree, majors_subtree, middle_value = split_child(node_value)
+      minors_subtree, majors_subtree, middle_key = split_child(key)
 
-      target_subtree = node_value <= middle_value ? minors_subtree : majors_subtree
+      target_subtree = key <= middle_key ? minors_subtree : majors_subtree
 
-      target_subtree.add node_value
+      target_subtree.add key
     else
-      insertion_index = find_subtree_index(node_value)
+      insertion_index = find_subtree_index(key)
       y = subtrees[insertion_index]
 
       if leaf?
-        insert_value node_value, insertion_index
+        insert_key key, insertion_index
         insert_subtree nil, insertion_index
 
         self
       elsif y
-        y.add node_value
+        y.add key
       else
-        raise "Empty node reached when adding value `#{node_value}` to non-leaf node #{self}."
+        raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
       end
     end
   end
 
   def full?
-    values.size == NODES[:max]
+    keys.size == NODES[:max]
   end
 
-  def nodes_count
-    values.size
+  def keys_count
+    keys.size
   end
 
   def subtrees_count
@@ -72,36 +72,36 @@ class BTree
   end
 
   def valid?
-    subtrees_count == nodes_count + 1 &&
+    subtrees_count == keys_count + 1 &&
       within_size_limits? &&
       (tree_height = height) && subtrees.all? { |subtree| (subtree&.height || 0) == tree_height - 1 } &&
       (leaf? ? true : subtrees.all?(&:valid?))
   end
 
-  def total_nodes_count
-    nodes_count + (leaf? ? 0 : subtrees.map(&:total_nodes_count).reduce(:+))
+  def total_keys_count
+    keys_count + (leaf? ? 0 : subtrees.map(&:total_keys_count).reduce(:+))
   end
 
   def total_nodes
     1 + (leaf? ? 0 : subtrees.map(&:total_nodes).reduce(:+))
   end
 
-  def average_nodes_count
-    total_nodes_count.to_f / total_nodes
+  def average_keys_count
+    total_keys_count.to_f / total_nodes
   end
 
-  def find(node_value)
-    subtree_index = find_subtree_index(node_value)
+  def find(key)
+    subtree_index = find_subtree_index(key)
 
-    if subtree_index < nodes_count && values[subtree_index] == node_value
+    if subtree_index < keys_count && keys[subtree_index] == key
       self
     elsif non_leaf?
-      subtrees[subtree_index].find node_value
+      subtrees[subtree_index].find key
     end
   end
 
   def descendant_index
-    parent&.find_subtree_index values[0]    # The value is not relevant. We could have picked any of the current node.
+    parent&.find_subtree_index keys[0]    # The key is not relevant. We could have picked any of the current node.
   end
 
   def height
@@ -111,30 +111,30 @@ class BTree
   # def pre_order
   #   non_leaf? ?
   #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-  #       memo + (i < nodes_count ? [values[i]] : []) + subtree.pre_order
+  #       memo + (i < keys_count ? [keys[i]] : []) + subtree.pre_order
   #     end :
-  #     values
+  #     keys
   # end
 
   def in_order
     non_leaf? ?
       subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-        memo + subtree.in_order + (i < nodes_count ? [values[i]] : [])
+        memo + subtree.in_order + (i < keys_count ? [keys[i]] : [])
       end :
-      values
+      keys
   end
 
   # def post_order
   #   non_leaf? ?
   #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-  #       memo + subtree.post_order + (i < nodes_count ? [values[i]] : [])
+  #       memo + subtree.post_order + (i < keys_count ? [keys[i]] : [])
   #     end :
-  #     values
+  #     keys
   # end
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { values: values, subtrees: subtrees.map(&:to_s) }.to_s
+    { keys: keys, subtrees: subtrees.map(&:to_s) }.to_s
   end
 
   alias_method :inspect, :to_s
@@ -142,7 +142,7 @@ class BTree
   def as_graphviz(image_file = 'tree.png')
     g = GraphViz.new(:G, type: :digraph)
 
-    draw_graph_tree g, g.add_nodes(SecureRandom.uuid, label: values.join(', '), shape: :ellipse)
+    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: keys.join(', '), shape: :ellipse)
 
     g.output png: image_file
   end
@@ -151,22 +151,22 @@ class BTree
 
   attr_writer :parent
 
-  def find_subtree_index(node_value)
-    values.index { |v| node_value <= v } || nodes_count
+  def find_subtree_index(key)
+    keys.index { |v| key <= v } || keys_count
   end
 
-  def find_subtree(node_value)
-    subtrees[find_subtree_index(node_value)]
+  def find_subtree(key)
+    subtrees[find_subtree_index(key)]
   end
 
   def within_size_limits?
-    ((parent ? NODES[:min] : 1)..NODES[:max]).include? nodes_count
+    ((parent ? NODES[:min] : 1)..NODES[:max]).include? keys_count
   end
 
-  def insert_value(node_value, position)
-    raise "Maximum node size exceeded for subtree #{self} when inserting value `#{node_value}`." if nodes_count + 1 > NODES[:max]
+  def insert_key(key, position)
+    raise "Maximum node size exceeded for subtree #{self} when inserting key `#{key}`." if keys_count + 1 > NODES[:max]
 
-    values.insert position, node_value
+    keys.insert position, key
   end
 
   def insert_subtree(subtree, position)
@@ -174,97 +174,97 @@ class BTree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of nodes (#{nodes_count}) + 1." if new_subtrees.size != nodes_count + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if new_subtrees.size != keys_count + 1
 
     @subtrees = new_subtrees
 
     new_subtrees.each { |subtree| subtree&.parent = self }
   end
 
-  def values=(new_values)
-    raise "Minimum node size not reached for subtree #{self} when setting values `#{values.join(', ')}`." if parent && new_values.size < NODES[:min]
-    raise "Maximum node size exceeded for subtree #{self} when setting values `#{values.join(', ')}`." if new_values.size > NODES[:max]
+  def keys=(new_keys)
+    raise "Minimum node size not reached for subtree #{self} when setting keys `#{keys.join(', ')}`." if parent && new_keys.size < NODES[:min]
+    raise "Maximum node size exceeded for subtree #{self} when setting keys `#{keys.join(', ')}`." if new_keys.size > NODES[:max]
 
-    @values = new_values
+    @keys = new_keys
   end
 
-  def draw_graph_tree(g, root_node)
+  def draw_graph_tree(g, root_key)
     subtrees.each_with_index do |subtree, index|
       if subtree
         raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
 
         # https://www.graphviz.org/doc/info/shapes.html
-        current_node = g.add_nodes(SecureRandom.uuid, label: subtree.values.join(', '), shape: :ellipse)
+        current_key = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: :ellipse)
 
         edge_label = if index == 0
           if (descendant_index_ancestor = find_first_ancestor_with_non_minimum_descendant_index)
-            [descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, values[index]].join
+            [descendant_index_ancestor.parent.keys[descendant_index_ancestor.descendant_index - 1], ELLIPSIS, keys[index]].join
           else
-            [ELLIPSIS, values[index]].join
+            [ELLIPSIS, keys[index]].join
           end
         elsif index == subtrees_count - 1
           if (descendant_index_ancestor = find_first_ancestor_with_non_maximum_descendant_index)
-            [values[index - 1], ELLIPSIS, descendant_index_ancestor.parent.values[descendant_index_ancestor.descendant_index]].join
+            [keys[index - 1], ELLIPSIS, descendant_index_ancestor.parent.keys[descendant_index_ancestor.descendant_index]].join
           else
-            [values[index - 1], ELLIPSIS].join
+            [keys[index - 1], ELLIPSIS].join
           end
         else
-          [values[index - 1], ELLIPSIS, values[index]].join
+          [keys[index - 1], ELLIPSIS, keys[index]].join
         end
 
-        # # Draw the arrow pointing from the root node to this sub-tree.
-        g.add_edges root_node, current_node, label: edge_label
+        # # Draw the arrow pointing from the root key to this sub-tree.
+        g.add_edges root_key, current_key, label: edge_label
 
-        subtree.draw_graph_tree g, current_node
+        subtree.draw_graph_tree g, current_key
       elsif !leaf?
-        g.add_edges root_node, g.add_nodes(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
+        g.add_edges root_key, g.add_keys(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
       end
     end
   end
 
   private
 
-  def split_child(node_value)
-    splitted = split_node_in_middle
-    splitted_values = splitted[:values]
+  def split_child(key)
+    splitted = split_key_in_middle
+    splitted_keys = splitted[:keys]
     splitted_subtrees = splitted[:subtrees]
 
-    # Top root node?
+    # Top root key?
     if parent
       # No.
-      parent_insertion_index = parent.find_subtree_index(node_value)
+      parent_insertion_index = parent.find_subtree_index(key)
 
-      # Move the middle value to its parent.
-      raise "Full node #{parent} when trying to add value `#{splitted[:middle_value]}` during split." if parent.full?
-      parent.insert_value splitted[:middle_value], parent_insertion_index
+      # Move the middle key to its parent.
+      raise "Full node #{parent} when trying to add key `#{splitted[:middle_key]}` during split." if parent.full?
+      parent.insert_key splitted[:middle_key], parent_insertion_index
 
       # Create minors sub-tree.
-      minors_subtree = self.class.new(splitted_values[:minors], subtrees: splitted_subtrees[:minors], parent: parent)
+      minors_subtree = self.class.new(splitted_keys[:minors], subtrees: splitted_subtrees[:minors], parent: parent)
       parent.insert_subtree minors_subtree, parent_insertion_index
 
       majors_subtree = self
 
-      # Update the current node to include only the majors' values (and corresponding sub-trees).
-      self.values = splitted_values[:majors]
+      # Update the current key to include only the majors' keys (and corresponding sub-trees).
+      self.keys = splitted_keys[:majors]
       self.subtrees = splitted_subtrees[:majors]
     else
       # Yes.
-      minors_subtree = self.class.new(splitted_values[:minors], subtrees: splitted_subtrees[:minors], parent: self)
-      majors_subtree = self.class.new(splitted_values[:majors], subtrees: splitted_subtrees[:majors], parent: self)
+      minors_subtree = self.class.new(splitted_keys[:minors], subtrees: splitted_subtrees[:minors], parent: self)
+      majors_subtree = self.class.new(splitted_keys[:majors], subtrees: splitted_subtrees[:majors], parent: self)
 
-      self.values = [splitted[:middle_value]]
+      self.keys = [splitted[:middle_key]]
       self.subtrees = [minors_subtree, majors_subtree]
     end
 
-    [minors_subtree, majors_subtree, splitted[:middle_value]]
+    [minors_subtree, majors_subtree, splitted[:middle_key]]
   end
 
-  def split_node_in_middle
+  def split_key_in_middle
     {
-      middle_value: values[NODES[:middle_index]],
-      values: {
-        minors: values[0..(NODES[:middle_index] - 1)],
-        majors: values[(NODES[:middle_index] + 1)..-1],
+      middle_key: keys[NODES[:middle_index]],
+      keys: {
+        minors: keys[0..(NODES[:middle_index] - 1)],
+        majors: keys[(NODES[:middle_index] + 1)..-1],
       },
       subtrees: {
         minors: subtrees[0..NODES[:middle_index]],
@@ -288,7 +288,7 @@ class BTree
     current = self
 
     loop do
-      break if !current.parent || current.descendant_index < current.parent.nodes_count
+      break if !current.parent || current.descendant_index < current.parent.keys_count
       current = current.parent
     end
 
@@ -310,4 +310,4 @@ end
 
 @root.as_graphviz; `open tree.png`
 puts @root.valid?
-puts "Tree average node size: #{"%3.1f" % (@root.average_nodes_count)}"
+puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
