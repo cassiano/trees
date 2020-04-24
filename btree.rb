@@ -82,12 +82,12 @@ class BTree
     keys_count + (leaf? ? 0 : subtrees.map(&:total_keys_count).reduce(:+))
   end
 
-  def total_nodes
-    1 + (leaf? ? 0 : subtrees.map(&:total_nodes).reduce(:+))
+  def total_nodes_count
+    1 + (leaf? ? 0 : subtrees.map(&:total_nodes_count).reduce(:+))
   end
 
   def average_keys_count
-    total_keys_count.to_f / total_nodes
+    total_keys_count.to_f / total_nodes_count
   end
 
   def find(key)
@@ -294,7 +294,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 8 - 1)).to_a.shuffle
+items = (1..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
