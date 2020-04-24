@@ -276,8 +276,7 @@ class BTree
   def find_first_ancestor_with_non_minimum_descendant_index
     current = self
 
-    loop do
-      break if !current.parent || current.descendant_index > 0
+    while current.parent && current.descendant_index == 0
       current = current.parent
     end
 
@@ -287,8 +286,7 @@ class BTree
   def find_first_ancestor_with_non_maximum_descendant_index
     current = self
 
-    loop do
-      break if !current.parent || current.descendant_index < current.parent.keys_count
+    while current.parent && current.descendant_index == current.parent.keys_count
       current = current.parent
     end
 
@@ -296,7 +294,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 6 - 1)).to_a.shuffle
+items = (1..(2 ** 8 - 1)).to_a.shuffle
 
 p items
 
