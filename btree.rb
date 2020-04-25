@@ -108,29 +108,15 @@ class BTree
     (subtrees[0]&.height || 0) + 1
   end
 
-  # def pre_order
-  #   non_leaf? ?
-  #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-  #       memo + (i < keys_count ? [keys[i]] : []) + subtree.pre_order
-  #     end :
-  #     keys
-  # end
-
   def in_order
-    non_leaf? ?
+    if leaf?
+      keys
+    else
       subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
         memo + subtree.in_order + (i < keys_count ? [keys[i]] : [])
-      end :
-      keys
+      end
+    end
   end
-
-  # def post_order
-  #   non_leaf? ?
-  #     subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-  #       memo + subtree.post_order + (i < keys_count ? [keys[i]] : [])
-  #     end :
-  #     keys
-  # end
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
