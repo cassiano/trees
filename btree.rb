@@ -6,8 +6,7 @@ require 'securerandom'
 
 # https://www.geeksforgeeks.org/introduction-of-b-tree-2/
 class BTree
-  PROACTIVE_ALGORITHM = false
-  REACTIVE_ALGORITHM = !PROACTIVE_ALGORITHM
+  ALGORITHM = :reactive    # :proactive
   DEBUG = true
   ASSERTIONS = true
   T = 3   # Minimum degree.
@@ -30,32 +29,8 @@ class BTree
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
   def add(key)
-    if PROACTIVE_ALGORITHM
-      if full?
-        minors_subtree, majors_subtree, middle_key = split_child(key)
-
-        target_subtree = key <= middle_key ? minors_subtree : majors_subtree
-
-        target_subtree.add key
-      else
-        insertion_index = find_subtree_index(key)
-        y = subtrees[insertion_index] if subtrees
-
-        if leaf?
-          insert_key key, insertion_index
-
-          self
-        elsif y
-          y.add key
-        else
-          raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
-        end
-      end
-    else  # Use reactive algorithm.
-      insertion_index = find_subtree_index(key)
-      y = subtrees[insertion_index] if subtrees
-
-      if leaf?
+    case ALGORITHM
+      when :proactive
         if full?
           minors_subtree, majors_subtree, middle_key = split_child(key)
 
@@ -63,15 +38,40 @@ class BTree
 
           target_subtree.add key
         else
-          insert_key key, insertion_index
+          insertion_index = find_subtree_index(key)
+          y = subtrees[insertion_index] if subtrees
 
-          self
+          if leaf?
+            insert_key key, insertion_index
+
+            self
+          elsif y
+            y.add key
+          else
+            raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
+          end
         end
-      elsif y
-        y.add key
-      else
-        raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
-      end
+      when :reactive
+        insertion_index = find_subtree_index(key)
+        y = subtrees[insertion_index] if subtrees
+
+        if leaf?
+          if full?
+            minors_subtree, majors_subtree, middle_key = split_child(key)
+
+            target_subtree = key <= middle_key ? minors_subtree : majors_subtree
+
+            target_subtree.add key
+          else
+            insert_key key, insertion_index
+
+            self
+          end
+        elsif y
+          y.add key
+        else
+          raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
+        end
     end
   end
 
@@ -236,7 +236,7 @@ class BTree
     # Top root key?
     if parent
       # No.
-      if REACTIVE_ALGORITHM
+      if ALGORITHM == :reactive
         parent.split_child(key) if parent.full?
       end
 
@@ -305,7 +305,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 6 - 1)).map { |i| i * 10 }  #.shuffle
+items = (1..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
