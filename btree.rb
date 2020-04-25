@@ -6,6 +6,8 @@ require 'securerandom'
 
 # https://www.geeksforgeeks.org/introduction-of-b-tree-2/
 class BTree
+  PROACTIVE_ALGORITHM = false
+  REACTIVE_ALGORITHM = !PROACTIVE_ALGORITHM
   DEBUG = true
   ASSERTIONS = true
   T = 3   # Minimum degree.
@@ -23,26 +25,48 @@ class BTree
 
     self.parent = parent
     self.keys = keys
-    self.subtrees = subtrees || [nil] * (keys.size + 1)
+    self.subtrees = subtrees
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
   def add(key)
-    if full?
-      minors_subtree, majors_subtree, middle_key = split_child(key)
+    if PROACTIVE_ALGORITHM
+      if full?
+        minors_subtree, majors_subtree, middle_key = split_child(key)
 
-      target_subtree = key <= middle_key ? minors_subtree : majors_subtree
+        target_subtree = key <= middle_key ? minors_subtree : majors_subtree
 
-      target_subtree.add key
-    else
+        target_subtree.add key
+      else
+        insertion_index = find_subtree_index(key)
+        y = subtrees[insertion_index] if subtrees
+
+        if leaf?
+          insert_key key, insertion_index
+
+          self
+        elsif y
+          y.add key
+        else
+          raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
+        end
+      end
+    else  # Use reactive algorithm.
       insertion_index = find_subtree_index(key)
-      y = subtrees[insertion_index]
+      y = subtrees[insertion_index] if subtrees
 
       if leaf?
-        insert_key key, insertion_index
-        insert_subtree nil, insertion_index
+        if full?
+          minors_subtree, majors_subtree, middle_key = split_child(key)
 
-        self
+          target_subtree = key <= middle_key ? minors_subtree : majors_subtree
+
+          target_subtree.add key
+        else
+          insert_key key, insertion_index
+
+          self
+        end
       elsif y
         y.add key
       else
@@ -60,11 +84,11 @@ class BTree
   end
 
   def subtrees_count
-    subtrees.size
+    subtrees&.size || 0
   end
 
   def leaf?
-    subtrees.all? &:nil?
+    !subtrees
   end
 
   def non_leaf?
@@ -72,7 +96,7 @@ class BTree
   end
 
   def valid?
-    subtrees_count == keys_count + 1 &&
+    leaf? ? !subtrees : subtrees_count == keys_count + 1 &&
       within_size_limits? &&
       (tree_height = height) && subtrees.all? { |subtree| (subtree&.height || 0) == tree_height - 1 } &&
       (leaf? ? true : subtrees.all?(&:valid?))
@@ -105,7 +129,7 @@ class BTree
   end
 
   def height
-    (subtrees[0]&.height || 0) + 1
+    (subtrees ? subtrees[0].height : 0) + 1
   end
 
   def in_order
@@ -120,7 +144,7 @@ class BTree
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { keys: keys, subtrees: subtrees.map(&:to_s) }.to_s
+    { keys: keys, subtrees: subtrees&.map(&:to_s) }.to_s
   end
 
   alias_method :inspect, :to_s
@@ -142,7 +166,7 @@ class BTree
   end
 
   def find_subtree(key)
-    subtrees[find_subtree_index(key)]
+    subtrees[find_subtree_index(key)] if subtrees
   end
 
   def within_size_limits?
@@ -156,15 +180,15 @@ class BTree
   end
 
   def insert_subtree(subtree, position)
-    subtrees.insert position, subtree
+    subtrees.insert(position, subtree) if subtree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if new_subtrees.size != keys_count + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if new_subtrees && new_subtrees.size != keys_count + 1
 
     @subtrees = new_subtrees
 
-    new_subtrees.each { |subtree| subtree&.parent = self }
+    new_subtrees&.each { |subtree| subtree&.parent = self }
   end
 
   def keys=(new_keys)
@@ -175,40 +199,34 @@ class BTree
   end
 
   def draw_graph_tree(g, root_node)
-    subtrees.each_with_index do |subtree, index|
-      if subtree
-        raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
+    subtrees&.each_with_index do |subtree, index|
+      raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
 
-        # https://www.graphviz.org/doc/info/shapes.html
-        current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
+      # https://www.graphviz.org/doc/info/shapes.html
+      current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
 
-        edge_label = if index == 0
-          if (ancestor_key = find_first_ancestor_key_with_non_minimum_descendant_index)
-            [ancestor_key, ELLIPSIS, keys[index]].join
-          else
-            [ELLIPSIS, keys[index]].join
-          end
-        elsif index == subtrees_count - 1
-          if (ancestor_key = find_first_ancestor_key_with_non_maximum_descendant_index)
-            [keys[index - 1], ELLIPSIS, ancestor_key].join
-          else
-            [keys[index - 1], ELLIPSIS].join
-          end
+      edge_label = if index == 0
+        if (ancestor_key = find_first_ancestor_key_with_non_minimum_descendant_index)
+          [ancestor_key, ELLIPSIS, keys[index]].join
         else
-          [keys[index - 1], ELLIPSIS, keys[index]].join
+          [ELLIPSIS, keys[index]].join
         end
-
-        # # Draw the arrow pointing from the root key to this sub-tree.
-        g.add_edges root_node, current_node, label: edge_label
-
-        subtree.draw_graph_tree g, current_node
-      elsif !leaf?
-        g.add_edges root_node, g.add_keys(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
+      elsif index == subtrees_count - 1
+        if (ancestor_key = find_first_ancestor_key_with_non_maximum_descendant_index)
+          [keys[index - 1], ELLIPSIS, ancestor_key].join
+        else
+          [keys[index - 1], ELLIPSIS].join
+        end
+      else
+        [keys[index - 1], ELLIPSIS, keys[index]].join
       end
+
+      # # Draw the arrow pointing from the root key to this sub-tree.
+      g.add_edges root_node, current_node, label: edge_label
+
+      subtree.draw_graph_tree g, current_node
     end
   end
-
-  private
 
   def split_child(key)
     splitted = split_key_in_middle
@@ -217,6 +235,11 @@ class BTree
 
     # Top root key?
     if parent
+      # No.
+      if REACTIVE_ALGORITHM
+        parent.split_child(key) if parent.full?
+      end
+
       # No.
       parent_insertion_index = parent.find_subtree_index(key)
 
@@ -245,6 +268,8 @@ class BTree
     [minors_subtree, majors_subtree, splitted[:middle_key]]
   end
 
+  private
+
   def split_key_in_middle
     {
       middle_key: keys[NODES[:middle_index]],
@@ -253,8 +278,8 @@ class BTree
         majors: keys[(NODES[:middle_index] + 1)..-1],
       },
       subtrees: {
-        minors: subtrees[0..NODES[:middle_index]],
-        majors: subtrees[NODES[:middle_index] + 1..-1],
+        minors: subtrees && subtrees[0..NODES[:middle_index]],
+        majors: subtrees && subtrees[NODES[:middle_index] + 1..-1],
       }
     }
   end
@@ -280,7 +305,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
+items = (1..(2 ** 6 - 1)).map { |i| i * 10 }  #.shuffle
 
 p items
 
