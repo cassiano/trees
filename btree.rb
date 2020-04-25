@@ -142,7 +142,7 @@ class BTree
   def as_graphviz(image_file = 'tree.png')
     g = GraphViz.new(:G, type: :digraph)
 
-    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: keys.join(', '), shape: :ellipse)
+    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: keys.join(', '), shape: leaf? ? :rectangle : :ellipse)
 
     g.output png: image_file
   end
@@ -188,13 +188,13 @@ class BTree
     @keys = new_keys
   end
 
-  def draw_graph_tree(g, root_key)
+  def draw_graph_tree(g, root_node)
     subtrees.each_with_index do |subtree, index|
       if subtree
         raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
 
         # https://www.graphviz.org/doc/info/shapes.html
-        current_key = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: :ellipse)
+        current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
 
         edge_label = if index == 0
           if (ancestor_key = find_first_ancestor_key_with_non_minimum_descendant_index)
@@ -213,11 +213,11 @@ class BTree
         end
 
         # # Draw the arrow pointing from the root key to this sub-tree.
-        g.add_edges root_key, current_key, label: edge_label
+        g.add_edges root_node, current_node, label: edge_label
 
-        subtree.draw_graph_tree g, current_key
+        subtree.draw_graph_tree g, current_node
       elsif !leaf?
-        g.add_edges root_key, g.add_keys(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
+        g.add_edges root_node, g.add_keys(SecureRandom.uuid, shape: :point, color: :gray), arrowhead: :empty, arrowtail: :dot, color: :gray, style: :dashed
       end
     end
   end
@@ -294,7 +294,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
+items = (1..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
