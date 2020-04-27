@@ -29,33 +29,9 @@ class BTree
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
   def add(key)
-    case ALGORITHM
-      when :proactive
-        if full?
-          minors_subtree, majors_subtree, middle_key = split_child(key)
-
-          target_subtree = key <= middle_key ? minors_subtree : majors_subtree
-
-          target_subtree.add key
-        else
-          insertion_index = find_subtree_index(key)
-          y = subtrees[insertion_index] if subtrees
-
-          if leaf?
-            insert_key key, insertion_index
-
-            self
-          elsif y
-            y.add key
-          else
-            raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
-          end
-        end
-      when :reactive
-        insertion_index = find_subtree_index(key)
-        y = subtrees[insertion_index] if subtrees
-
-        if leaf?
+    begin
+      case ALGORITHM
+        when :proactive
           if full?
             minors_subtree, majors_subtree, middle_key = split_child(key)
 
@@ -63,127 +39,68 @@ class BTree
 
             target_subtree.add key
           else
-            insert_key key, insertion_index
+            insertion_index = find_subtree_index(key)
+            y = subtrees[insertion_index] if subtrees
 
-            self
+            if leaf?
+              insert_key key, insertion_index
+
+              self
+            elsif y
+              y.add key
+            else
+              raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
+            end
           end
-        elsif y
-          y.add key
-        else
-          raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
-        end
+        when :reactive
+          insertion_index = find_subtree_index(key)
+          y = subtrees[insertion_index] if subtrees
+
+          if leaf?
+            if full?
+              minors_subtree, majors_subtree, middle_key = split_child(key)
+
+              target_subtree = key <= middle_key ? minors_subtree : majors_subtree
+
+              target_subtree.add key
+            else
+              insert_key key, insertion_index
+
+              self
+            end
+          elsif y
+            y.add key
+          else
+            raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
+          end
+      end
+    ensure
+      if ASSERTIONS
+        raise "Invalid tree after adding #{key} to node #{self}." unless top_root.valid?
+      end
     end
   end
 
   def delete(key)
-    subtree_index = find_subtree_index(key)
+    begin
+      subtree_index = find_subtree_index(key)
 
-    if subtree_index < keys_count && keys[subtree_index] == key
-      # Key found.
-      if leaf?
-        if minimum_node_size_reached?
-          parent_index = descendant_index
-
-          siblings = []
-          siblings << { subtree: parent.subtrees[parent_index - 1], type: :left } if parent_index > 0                     # Left sibling.
-          siblings << { subtree: parent.subtrees[parent_index + 1], type: :right } if parent_index < parent.keys_count    # Right sibling.
-
-          puts "#{siblings.size} total sibling(s) found." if DEBUG
-
-          siblings.reject! { |sibling| sibling[:subtree].minimum_node_size_reached? }
-
-          puts "#{siblings.size} valid siblings(s) found." if DEBUG
-
-          if siblings.any?
-            # Case 3a.
-            puts "Case 3a detected." if DEBUG
-
-            sibling = siblings[0]   # Pick the 1st valid sibling.
-
-            case sibling[:type]
-              when :left
-                puts "Left sibling being used." if DEBUG
-
-                # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
-                parent_key = parent.keys[parent_index - 1]
-                highest_key = sibling[:subtree].keys[sibling[:subtree].keys_count - 1]
-
-                # puts "parent_key: #{parent_key}, highest_key: #{highest_key}" if DEBUG
-
-                sibling[:subtree].keys.delete_at -1
-                parent.keys[parent_index - 1] = highest_key
-
-                insert_key parent_key, 0
-                keys.delete_at subtree_index + 1
-              when :right
-                puts "Right sibling being used." if DEBUG
-
-                # Move the right sibling's lowest key up (to its parent node) and the parent node's respective key down to the right of current node.
-                parent_key = parent.keys[parent_index]
-                lowest_key = sibling[:subtree].keys[0]
-
-                # puts "parent_key: #{parent_key}, lowest_key: #{lowest_key}" if DEBUG
-
-                sibling[:subtree].keys.delete_at 0
-                parent.keys[parent_index] = lowest_key
-
-                insert_key parent_key, -1
-                keys.delete_at subtree_index
-            end
-          else
-            # Case 3b.
-            puts "Case 3b detected." if DEBUG
-
-            # ...
-          end
+      if subtree_index < keys_count && keys[subtree_index] == key
+        # Key found.
+        if leaf?
+          delete_from_leaf_node key, subtree_index
         else
-          # Case 1.
-          puts "Case 1 detected." if DEBUG
-
-          delete_key subtree_index
+          delete_from_non_leaf_node key, subtree_index
         end
+      elsif non_leaf?
+        subtrees[subtree_index].delete key
       else
-        # Check if child y that precedes key in current node has at least T keys.
-        y = subtrees[subtree_index]
-
-        if !y.minimum_node_size_reached?
-          # Case 2a.
-          puts "Case 2a detected." if DEBUG
-
-          k0 = y.predecessor
-          y.delete k0
-
-          keys[subtree_index] = k0
-        else
-          # Check if child z that succedes key in current node has at least T keys.
-          z = subtrees[subtree_index + 1]
-
-          if !z.minimum_node_size_reached?
-            # Case 2b.
-            puts "Case 2b detected." if DEBUG
-
-            k0 = z.successor
-            z.delete k0
-
-            keys[subtree_index] = k0
-          else
-            puts "Case 2c detected." if DEBUG
-
-            # Case 2c. Merge key and all of z into y.
-            y.keys += [key] + z.keys
-            y.subtrees += z.subtrees unless y.leaf? && z.leaf?
-
-            keys.delete_at subtree_index
-            subtrees.delete_at subtree_index + 1
-
-            y.delete key
-          end
-        end
+        raise "Key #{key} not found in non-leaf node #{self}."
       end
-    elsif non_leaf?
-      subtrees[subtree_index].delete key
-    else
-      raise "Key #{key} not found in non-leaf node #{self}."
+    ensure
+      if ASSERTIONS
+        raise "Invalid tree after deleting #{key} from node #{self}." unless top_root.valid?
+      end
     end
   end
 
@@ -417,6 +334,125 @@ class BTree
 
   private
 
+  def delete_from_leaf_node(key, subtree_index)
+    if minimum_node_size_reached?
+      parent_index = descendant_index
+
+      siblings = find_candidate_siblings(parent_index)
+
+      puts "#{siblings.size} candidate siblings(s) found." if DEBUG
+
+      if siblings.any?
+        # Case 3a.
+        puts "Case 3a detected." if DEBUG
+
+        sibling = siblings[0]   # Pick the 1st candidate sibling.
+
+        case sibling[:type]
+          when :left
+            delete_from_leaf_node_using_left_sibling key, subtree_index, sibling, parent_index
+          when :right
+            delete_from_leaf_node_using_right_sibling key, subtree_index, sibling, parent_index
+        end
+      else
+        # Case 3b.
+        puts "Case 3b detected." if DEBUG
+
+        # ...
+      end
+    else
+      # Case 1.
+      puts "Case 1 detected." if DEBUG
+
+      delete_key subtree_index
+    end
+  end
+
+  def find_candidate_siblings(parent_index)
+    [].tap do |siblings|
+      siblings << { subtree: parent.subtrees[parent_index - 1], type: :left } if parent_index > 0                     # Left sibling.
+      siblings << { subtree: parent.subtrees[parent_index + 1], type: :right } if parent_index < parent.keys_count    # Right sibling.
+
+      puts "#{siblings.size} total sibling(s) found." if DEBUG
+
+      siblings.reject! { |sibling| sibling[:subtree].minimum_node_size_reached? }
+    end
+  end
+
+  def delete_from_leaf_node_using_left_sibling(key, subtree_index, sibling, parent_index)
+    puts "Left sibling being used." if DEBUG
+
+    # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
+    parent_key = parent.keys[parent_index - 1]
+    highest_key = sibling[:subtree].keys[sibling[:subtree].keys_count - 1]
+
+    # puts "parent_key: #{parent_key}, highest_key: #{highest_key}" if DEBUG
+
+    sibling[:subtree].keys.delete_at -1
+    parent.keys[parent_index - 1] = highest_key
+
+    insert_key parent_key, 0
+    keys.delete_at subtree_index + 1
+  end
+
+  def delete_from_leaf_node_using_right_sibling(key, subtree_index, sibling, parent_index)
+    puts "Right sibling being used." if DEBUG
+
+    # Move the right sibling's lowest key up (to its parent node) and the parent node's respective key down to the right of current node.
+    parent_key = parent.keys[parent_index]
+    lowest_key = sibling[:subtree].keys[0]
+
+    # puts "parent_key: #{parent_key}, lowest_key: #{lowest_key}" if DEBUG
+
+    sibling[:subtree].keys.delete_at 0
+    parent.keys[parent_index] = lowest_key
+
+    insert_key parent_key, -1
+    keys.delete_at subtree_index
+  end
+
+  def delete_from_non_leaf_node(key, subtree_index)
+    # Check if child y that precedes key in current node has at least T keys.
+    y = subtrees[subtree_index]
+
+    if !y.minimum_node_size_reached?
+      # Case 2a.
+      puts "Case 2a detected." if DEBUG
+
+      k0 = y.predecessor
+      y.delete k0
+
+      keys[subtree_index] = k0
+    else
+      # Check if child z that succedes key in current node has at least T keys.
+      z = subtrees[subtree_index + 1]
+
+      if !z.minimum_node_size_reached?
+        # Case 2b.
+        puts "Case 2b detected." if DEBUG
+
+        k0 = z.successor
+        z.delete k0
+
+        keys[subtree_index] = k0
+      elsif !minimum_node_size_reached?
+        puts "Case 2c detected." if DEBUG
+
+        # Case 2c. Merge key and all keys of z into y.
+        y.keys += [key] + z.keys
+        y.subtrees += z.subtrees unless y.leaf? && z.leaf?
+
+        keys.delete_at subtree_index
+        subtrees.delete_at subtree_index + 1
+
+        y.delete key
+      else
+        raise "Node #{self} with minimum key size and both children as well."
+        # ...
+      end
+    end
+  end
+
   def split_keys_and_subtrees
     {
       middle_key: keys[NODES[:middle_index]],
@@ -465,5 +501,6 @@ items.each_with_index do |item, i|
 end
 
 @root.display
-puts @root.valid?
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
+
+# loop { nodes = @root.in_order; break if nodes.empty?; key = nodes.sample; puts "Deleting #{key}..."; @root.delete key }
