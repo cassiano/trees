@@ -376,7 +376,7 @@ class BTree
 
   def find_candidate_siblings(parent_index)
     [].tap do |siblings|
-      siblings << { subtree: parent.subtrees[parent_index - 1], type: :left } if parent_index > 0                     # Left sibling.
+      siblings << { subtree: parent.subtrees[parent_index - 1], type: :left  } if parent_index > 0                    # Left sibling.
       siblings << { subtree: parent.subtrees[parent_index + 1], type: :right } if parent_index < parent.keys_count    # Right sibling.
 
       puts "#{siblings.size} total sibling(s) found." if DEBUG
