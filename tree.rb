@@ -1,7 +1,6 @@
 # brew install graphviz
 # gem install ruby-graphviz
 
-require 'ap'
 require 'ruby-graphviz'
 require 'securerandom'
 
@@ -464,11 +463,13 @@ class AvlTree < BST
   attr_accessor :ancestors_checked_after_insertion
 
   def add(node_value)
-    puts "Adding #{node_value} to sub-tree #{value}" if DEBUG
+    begin
+      puts "Adding #{node_value} to sub-tree #{value}" if DEBUG
 
-    super.tap do |new_child|
-      new_child.rebalance_after_insertion
-
+      super.tap do |new_child|
+        new_child.rebalance_after_insertion
+      end
+    ensure
       if ASSERTIONS
         raise "Tree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
       end
@@ -477,25 +478,27 @@ class AvlTree < BST
 
   # https://www.geeksforgeeks.org/avl-tree-set-2-deletion/
   def delete(node_or_value)
-    puts "Deleting #{node_or_value} from sub-tree #{value}" if DEBUG
+    begin
+      puts "Deleting #{node_or_value} from sub-tree #{value}" if DEBUG
 
-    return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
+      return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
 
-    node_parent = node.parent
+      node_parent = node.parent
 
-    super
+      super
 
-    if node_parent
-      node_parent.ancestors.each do |node_to_be_checked|
-        node_to_be_checked.rebalance_after_deletion
+      if node_parent
+        node_parent.ancestors.each do |node_to_be_checked|
+          node_to_be_checked.rebalance_after_deletion
+        end
       end
-    end
 
-    # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
-    # node_parent.ancestors.each(&:rebalance_after_deletion) if node_parent
-
-    if ASSERTIONS
-      raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
+      # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
+      # node_parent.ancestors.each(&:rebalance_after_deletion) if node_parent
+    ensure
+      if ASSERTIONS
+        raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
+      end
     end
   end
 
@@ -660,10 +663,10 @@ items.each_with_index do |item, i|
   @root.add item
 end
 
-ap @root.as_text
-puts
-puts @root.as_gui
-puts
+# p @root.as_text
+# puts
+# puts @root.as_gui
+# puts
 puts @root.as_tree_gui(width: 158)
 puts
 puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
