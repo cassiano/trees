@@ -81,25 +81,25 @@ class BTree
     end
   end
 
-  def delete(key)
+  def delete(k)
     begin
-      subtree_index = find_subtree_index(key)
+      subtree_index = find_subtree_index(k)
 
-      if subtree_index < keys_count && keys[subtree_index] == key
+      if subtree_index < keys_count && keys[subtree_index] == k
         # Key found.
         if leaf?
-          delete_from_leaf_node key, subtree_index
+          delete_from_leaf_node k, subtree_index
         else
-          delete_from_non_leaf_node key, subtree_index
+          delete_from_non_leaf_node k, subtree_index
         end
       elsif non_leaf?
-        subtrees[subtree_index].delete key
+        subtrees[subtree_index].delete k
       else
-        raise "Key #{key} not found in non-leaf node #{self}."
+        raise "Key #{k} not found in non-leaf node #{self}."
       end
     ensure
       if ASSERTIONS
-        raise "Invalid tree after deleting #{key} from node #{self}." unless top_root.valid?
+        raise "Invalid tree after deleting #{k} from node #{self}." unless top_root.valid?
       end
     end
   end
@@ -147,10 +147,15 @@ class BTree
   end
 
   def valid?
-    leaf? ? !subtrees : subtrees_count == keys_count + 1 &&
-      within_size_limits? &&
-      (tree_height = height) && subtrees.all? { |subtree| (subtree&.height || 0) == tree_height - 1 } &&
-      (leaf? ? true : subtrees.all?(&:valid?))
+    if leaf?
+      !subtrees &&
+        within_size_limits?
+    else
+      subtrees_count == keys_count + 1 &&
+        within_size_limits? &&
+        ((tree_height = height) && subtrees.all? { |subtree| subtree.height == tree_height - 1 }) &&
+        subtrees.all?(&:valid?)
+    end
   end
 
   def total_keys_count
@@ -334,7 +339,7 @@ class BTree
 
   private
 
-  def delete_from_leaf_node(key, subtree_index)
+  def delete_from_leaf_node(k, subtree_index)
     if minimum_node_size_reached?
       parent_index = descendant_index
 
@@ -350,9 +355,9 @@ class BTree
 
         case sibling[:type]
           when :left
-            delete_from_leaf_node_using_left_sibling key, subtree_index, sibling, parent_index
+            delete_from_leaf_node_using_left_sibling subtree_index, sibling, parent_index
           when :right
-            delete_from_leaf_node_using_right_sibling key, subtree_index, sibling, parent_index
+            delete_from_leaf_node_using_right_sibling subtree_index, sibling, parent_index
         end
       else
         # Case 3b.
@@ -379,7 +384,7 @@ class BTree
     end
   end
 
-  def delete_from_leaf_node_using_left_sibling(key, subtree_index, sibling, parent_index)
+  def delete_from_leaf_node_using_left_sibling(subtree_index, sibling, parent_index)
     puts "Left sibling being used." if DEBUG
 
     # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
@@ -395,7 +400,7 @@ class BTree
     keys.delete_at subtree_index + 1
   end
 
-  def delete_from_leaf_node_using_right_sibling(key, subtree_index, sibling, parent_index)
+  def delete_from_leaf_node_using_right_sibling(subtree_index, sibling, parent_index)
     puts "Right sibling being used." if DEBUG
 
     # Move the right sibling's lowest key up (to its parent node) and the parent node's respective key down to the right of current node.
@@ -411,8 +416,8 @@ class BTree
     keys.delete_at subtree_index
   end
 
-  def delete_from_non_leaf_node(key, subtree_index)
-    # Check if child y that precedes key in current node has at least T keys.
+  def delete_from_non_leaf_node(k, subtree_index)
+    # Check if child y that precedes k in current node has at least T keys.
     y = subtrees[subtree_index]
 
     if !y.minimum_node_size_reached?
@@ -424,7 +429,7 @@ class BTree
 
       keys[subtree_index] = k0
     else
-      # Check if child z that succedes key in current node has at least T keys.
+      # Check if child z that succedes k in current node has at least T keys.
       z = subtrees[subtree_index + 1]
 
       if !z.minimum_node_size_reached?
@@ -438,14 +443,14 @@ class BTree
       elsif !minimum_node_size_reached?
         puts "Case 2c detected." if DEBUG
 
-        # Case 2c. Merge key and all keys of z into y.
-        y.keys += [key] + z.keys
+        # Case 2c. Merge k and all keys of z into y.
+        y.keys += [k] + z.keys
         y.subtrees += z.subtrees unless y.leaf? && z.leaf?
 
         keys.delete_at subtree_index
         subtrees.delete_at subtree_index + 1
 
-        y.delete key
+        y.delete k
       else
         raise "Node #{self} with minimum key size and both children as well."
         # ...
