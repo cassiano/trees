@@ -148,12 +148,13 @@ class BTree
 
   def valid?
     if leaf?
-      !subtrees &&
-        within_size_limits?
+      within_size_limits? && subtrees.nil?
     else
-      subtrees_count == keys_count + 1 &&
-        within_size_limits? &&
-        ((tree_height = height) && subtrees.all? { |subtree| subtree.height == tree_height - 1 }) &&
+      tree_height = height
+
+      within_size_limits? &&
+        subtrees_count == keys_count + 1 &&
+        subtrees.all? { |subtree| subtree.height == tree_height - 1 } &&
         subtrees.all?(&:valid?)
     end
   end
