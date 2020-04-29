@@ -9,7 +9,7 @@ class BTree
   ALGORITHM = :reactive    # :proactive
   DEBUG = true
   ASSERTIONS = true
-  T = 3   # Minimum degree.
+  T = 50   # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
@@ -17,7 +17,11 @@ class BTree
   }
   ELLIPSIS = '…'
 
+  class EmptyBTreeError < StandardError
+  end
+
   attr_reader :keys, :subtrees, :parent
+  attr_accessor :merged_at
 
   def initialize(key_or_keys, subtrees: nil, parent: nil)
     keys = [*key_or_keys]
@@ -94,9 +98,12 @@ class BTree
     if subtree_index < keys_count && keys[subtree_index] == k
       # Yes.
       if leaf?
+        # Case 1.
         puts "Case 1 detected." if DEBUG
 
         delete_key subtree_index
+
+        raise EmptyBTreeError if top_root? && keys_count == 0
       else
         delete_from_non_leaf_node k, subtree_index
       end
@@ -106,7 +113,7 @@ class BTree
 
       subtree.increment_key_size if subtree.minimum_node_size_reached?
 
-      subtree.delete k
+      (subtree.merged_at || subtree).delete k
     end
 
     if ASSERTIONS
@@ -142,36 +149,57 @@ class BTree
 
       sibling = immediate_siblings[0]   # Pick the 1st immediate sibling, no matter if left or right.
 
-      case sibling[:type]
-        when :left
-          puts "Left sibling being used." if DEBUG
+      if parent.top_root? && parent.keys_count == 1
+        puts "Top root with a single key being merged." if DEBUG
 
-          parent_key = parent.keys[stored_descendant_index - 1]
+        parent_key = parent.keys[0]
 
-          puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
+        case sibling[:type]
+          when :left
+            puts "Left sibling being used." if DEBUG
 
-          self.keys = sibling[:subtree].keys + [parent_key] + keys
-          self.subtrees = sibling[:subtree].subtrees + subtrees if subtrees
+            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
 
-          parent.keys.delete_at stored_descendant_index - 1
-          parent.subtrees.delete_at stored_descendant_index - 1
-        when :right
-          puts "Right sibling being used." if DEBUG
+            parent.keys = sibling[:subtree].keys + [parent_key] + keys
+            parent.subtrees = sibling[:subtree].subtrees && subtrees ? sibling[:subtree].subtrees + subtrees : nil
+          when :right
+            puts "Right sibling being used." if DEBUG
 
-          parent_key = parent.keys[stored_descendant_index]
+            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
 
-          puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
+            parent.keys = keys + [parent_key] + sibling[:subtree].keys
+            parent.subtrees = subtrees && sibling[:subtree].subtrees ? subtrees + sibling[:subtree].subtrees : nil
+        end
 
-          self.keys += [parent_key] + sibling[:subtree].keys
-          self.subtrees += sibling[:subtree].subtrees if subtrees
+        self.merged_at = parent
+      else
+        case sibling[:type]
+          when :left
+            puts "Left sibling being used." if DEBUG
 
-          parent.keys.delete_at stored_descendant_index
-          parent.subtrees.delete_at stored_descendant_index + 1
+            parent_key = parent.keys[stored_descendant_index - 1]
+
+            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
+
+            self.keys = sibling[:subtree].keys + [parent_key] + keys
+            self.subtrees = sibling[:subtree].subtrees + subtrees if subtrees && sibling[:subtree].subtrees
+
+            parent.keys.delete_at stored_descendant_index - 1
+            parent.subtrees.delete_at stored_descendant_index - 1
+          when :right
+            puts "Right sibling being used." if DEBUG
+
+            parent_key = parent.keys[stored_descendant_index]
+
+            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
+
+            self.keys += [parent_key] + sibling[:subtree].keys
+            self.subtrees += sibling[:subtree].subtrees if subtrees && sibling[:subtree].subtrees
+
+            parent.keys.delete_at stored_descendant_index
+            parent.subtrees.delete_at stored_descendant_index + 1
+        end
       end
-
-      puts "Parent keys after using `delete_at`: #{parent.keys}. Is parent top root? #{parent.top_root?}" if DEBUG
-
-      raise "Empty parent (top root) after merge." if parent.top_root? && parent.keys_count == 0
     end
   end
 
@@ -245,20 +273,24 @@ class BTree
 
         keys[subtree_index] = k0
       else
+        # Case 2c. Merge k and all keys of z into y.
         puts "Case 2c detected." if DEBUG
 
-        # Case 2c. Merge k and all keys of z into y.
-        y.keys += [k] + z.keys
-        y.subtrees += z.subtrees unless y.leaf? && z.leaf?
+        if top_root? && keys_count == 1
+          puts "Top root with a single key being merged." if DEBUG
 
-        keys.delete_at subtree_index
-        subtrees.delete_at subtree_index + 1
+          # Do the merging in the current node, instead of the y node (see below), effectively deleting k.
+          self.keys = y.keys + z.keys
+          self.subtrees = y.leaf? && z.leaf? ? nil : y.subtrees + z.subtrees
+        else
+          y.keys += [k] + z.keys
+          y.subtrees += z.subtrees unless y.leaf? && z.leaf?
 
-        puts "Keys after using `delete_at`: #{keys}. Is top root? #{top_root?}" if DEBUG
+          keys.delete_at subtree_index
+          subtrees.delete_at subtree_index + 1
 
-        raise "Empty top root after merge." if top_root? && keys_count == 0
-
-        y.delete k
+          y.delete k
+        end
       end
     end
   end
@@ -537,7 +569,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 10 - 1)).map { |i| i * 10 }.shuffle
+items = (1..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
@@ -552,4 +584,4 @@ end
 @root.display
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-# loop { nodes = @root.in_order; break if nodes.empty?; key = nodes.sample; puts "Deleting #{key}..."; @root.delete key }
+# i = 1; loop { nodes = @root.in_order; break if nodes.empty?; key = nodes.sample; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i = 1 }
