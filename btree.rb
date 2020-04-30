@@ -368,9 +368,9 @@ class BTree
       # Case 3a.
       puts "Case 3a detected." if DEBUG
 
-      sibling = candidate_siblings[0]   # Pick the 1st candidate sibling, no matter if left or right.
+      sibling = candidate_siblings.sample   # Pick any candidate sibling.
 
-      puts "#{sibling[:type]} sibling being used." if DEBUG
+      puts "#{sibling[:type]} sibling #{'(PS: randomly picked from both siblings) ' if candidate_siblings.size > 1}being used." if DEBUG
 
       case sibling[:type]
         when :left
@@ -382,14 +382,14 @@ class BTree
       # Case 3b.
       puts "Case 3b detected." if DEBUG
 
-      sibling = immediate_siblings[0]   # Pick the 1st immediate sibling, no matter if left or right.
+      sibling = immediate_siblings.sample   # Pick any immediate sibling.
+
+      puts "#{sibling[:type]} sibling #{'(PS: randomly picked from both siblings) ' if immediate_siblings.size > 1}being used." if DEBUG
 
       if parent.top_root? && parent.keys_count == 1
         puts "Top root with a single key being merged." if DEBUG
 
         parent_key = parent.keys[0]
-
-        puts "#{sibling[:type]} sibling being used." if DEBUG
 
         case sibling[:type]
           when :left
@@ -564,4 +564,4 @@ end
 @root.display
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-# i = 1; loop { nodes = @root.in_order; break if nodes.empty?; key = nodes.sample; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
+# i = 1; nodes = @root.in_order.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
