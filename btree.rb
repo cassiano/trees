@@ -370,6 +370,8 @@ class BTree
 
       sibling = candidate_siblings[0]   # Pick the 1st candidate sibling, no matter if left or right.
 
+      puts "#{sibling[:type]} sibling being used." if DEBUG
+
       case sibling[:type]
         when :left
           move_key_from_left_sibling sibling, stored_descendant_index
@@ -425,8 +427,6 @@ class BTree
   private
 
   def move_key_from_left_sibling(sibling, stored_descendant_index)
-    puts "Left sibling being used." if DEBUG
-
     # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
     parent_key = parent.keys[stored_descendant_index - 1]
     left_sibling_highest_key = sibling[:subtree].keys[-1]
@@ -443,8 +443,6 @@ class BTree
   end
 
   def move_key_from_right_sibling(sibling, stored_descendant_index)
-    puts "Right sibling being used." if DEBUG
-
     # Move the right sibling's lowest key up (to its parent node) and the parent node's respective key down to the right of current node.
     parent_key = parent.keys[stored_descendant_index]
     right_sibling_lowest_key = sibling[:subtree].keys[0]
