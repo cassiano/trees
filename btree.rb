@@ -28,7 +28,7 @@ class BTree
 
     self.parent = parent
     self.keys = keys
-    self.subtrees = subtrees
+    self.subtrees = subtrees || []
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
@@ -44,7 +44,7 @@ class BTree
             target_subtree.add key
           else
             insertion_index = find_subtree_index(key)
-            y = subtrees[insertion_index] if subtrees
+            y = subtrees[insertion_index]
 
             if leaf?
               insert_key key, insertion_index
@@ -58,7 +58,7 @@ class BTree
           end
         when :reactive
           insertion_index = find_subtree_index(key)
-          y = subtrees[insertion_index] if subtrees
+          y = subtrees[insertion_index]
 
           if leaf?
             if full?
@@ -156,11 +156,11 @@ class BTree
   end
 
   def subtrees_count
-    subtrees&.size || 0
+    subtrees.size
   end
 
   def leaf?
-    !subtrees
+    subtrees.empty?
   end
 
   def non_leaf?
@@ -168,12 +168,11 @@ class BTree
   end
 
   def valid?
-    return false unless within_size_limits?
-
     if leaf?
-      subtrees.nil?
+      within_size_limits?
     else
-      subtrees_count == keys_count + 1 &&
+      within_size_limits? &&
+        subtrees_count == keys_count + 1 &&
         (tree_height = height) && subtrees.all? { |subtree| subtree.height == tree_height - 1 } &&
         subtrees.all? { |subtree| subtree.parent == self } &&
         subtrees.all?(&:valid?)
@@ -181,11 +180,11 @@ class BTree
   end
 
   def total_keys_count
-    keys_count + (leaf? ? 0 : subtrees.map(&:total_keys_count).reduce(:+))
+    keys_count + subtrees.map(&:total_keys_count).reduce(0, :+)
   end
 
   def total_nodes_count
-    1 + (leaf? ? 0 : subtrees.map(&:total_nodes_count).reduce(:+))
+    1 + subtrees.map(&:total_nodes_count).reduce(0, :+)
   end
 
   def average_keys_count
@@ -207,7 +206,7 @@ class BTree
   end
 
   def height
-    (subtrees ? subtrees[0].height : 0) + 1
+    (subtrees[0]&.height || 0) + 1
   end
 
   def in_order
@@ -222,7 +221,7 @@ class BTree
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { keys: keys, subtrees: subtrees&.map(&:to_s) }.to_s
+    { keys: keys, subtrees: subtrees.map(&:to_s) }.to_s
   end
 
   alias_method :inspect, :to_s
@@ -249,7 +248,7 @@ class BTree
   end
 
   def find_subtree(key)
-    subtrees[find_subtree_index(key)] if subtrees
+    subtrees[find_subtree_index(key)] unless subtrees.empty?
   end
 
   def insert_key(key, position)
@@ -274,11 +273,11 @@ class BTree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if new_subtrees && new_subtrees.size != keys_count + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if !new_subtrees.empty? && new_subtrees.size != keys_count + 1
 
     @subtrees = new_subtrees
 
-    new_subtrees&.each { |subtree| subtree&.parent = self }
+    new_subtrees.each { |subtree| subtree.parent = self }
   end
 
   def keys=(new_keys)
@@ -289,7 +288,7 @@ class BTree
   end
 
   def draw_graph_tree(g, root_node)
-    subtrees&.each_with_index do |subtree, index|
+    subtrees.each_with_index do |subtree, index|
       # https://www.graphviz.org/doc/info/shapes.html
       current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
 
@@ -393,10 +392,10 @@ class BTree
         case sibling[:type]
           when :left
             parent.keys = sibling[:subtree].keys + [parent_key] + keys
-            parent.subtrees = sibling[:subtree].subtrees && subtrees ? sibling[:subtree].subtrees + subtrees : nil
+            parent.subtrees = sibling[:subtree].subtrees + subtrees
           when :right
             parent.keys = keys + [parent_key] + sibling[:subtree].keys
-            parent.subtrees = subtrees && sibling[:subtree].subtrees ? subtrees + sibling[:subtree].subtrees : nil
+            parent.subtrees = subtrees + sibling[:subtree].subtrees
         end
 
         self.merged_at = parent
@@ -406,7 +405,7 @@ class BTree
             parent_key = parent.keys[stored_descendant_index - 1]
 
             self.keys = sibling[:subtree].keys + [parent_key] + keys
-            self.subtrees = sibling[:subtree].subtrees + subtrees if subtrees && sibling[:subtree].subtrees
+            self.subtrees = sibling[:subtree].subtrees + subtrees
 
             parent.keys.delete_at stored_descendant_index - 1
             parent.subtrees.delete_at stored_descendant_index - 1
@@ -414,7 +413,7 @@ class BTree
             parent_key = parent.keys[stored_descendant_index]
 
             self.keys += [parent_key] + sibling[:subtree].keys
-            self.subtrees += sibling[:subtree].subtrees if subtrees && sibling[:subtree].subtrees
+            self.subtrees += sibling[:subtree].subtrees
 
             parent.keys.delete_at stored_descendant_index
             parent.subtrees.delete_at stored_descendant_index + 1
@@ -431,12 +430,12 @@ class BTree
     # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
     parent_key = parent.keys[stored_descendant_index - 1]
     left_sibling_highest_key = sibling[:subtree].keys[-1]
-    left_sibling_highest_subtree = sibling[:subtree].subtrees[-1] if sibling[:subtree].subtrees
+    left_sibling_highest_subtree = sibling[:subtree].subtrees[-1]
 
     puts "parent_key: #{parent_key}, left_sibling_highest_key: #{left_sibling_highest_key}, left_sibling_highest_subtree: #{left_sibling_highest_subtree}" if DEBUG
 
     sibling[:subtree].keys.delete_at -1
-    sibling[:subtree].subtrees.delete_at(-1) if sibling[:subtree].subtrees
+    sibling[:subtree].subtrees.delete_at(-1)
     parent.keys[stored_descendant_index - 1] = left_sibling_highest_key
 
     insert_key parent_key, 0
@@ -449,12 +448,12 @@ class BTree
     # Move the right sibling's lowest key up (to its parent node) and the parent node's respective key down to the right of current node.
     parent_key = parent.keys[stored_descendant_index]
     right_sibling_lowest_key = sibling[:subtree].keys[0]
-    right_sibling_lowest_subtree = sibling[:subtree].subtrees[0] if sibling[:subtree].subtrees
+    right_sibling_lowest_subtree = sibling[:subtree].subtrees[0]
 
     puts "parent_key: #{parent_key}, right_sibling_lowest_key: #{right_sibling_lowest_key}, right_sibling_lowest_subtree: #{right_sibling_lowest_subtree}" if DEBUG
 
     sibling[:subtree].keys.delete_at 0
-    sibling[:subtree].subtrees.delete_at(0) if sibling[:subtree].subtrees
+    sibling[:subtree].subtrees.delete_at(0)
     parent.keys[stored_descendant_index] = right_sibling_lowest_key
 
     insert_key parent_key, -1
@@ -503,10 +502,10 @@ class BTree
 
           # Do the merging in the current node, instead of the y node (see below), effectively deleting k.
           self.keys = y.keys + z.keys
-          self.subtrees = y.leaf? && z.leaf? ? nil : y.subtrees + z.subtrees
+          self.subtrees = y.subtrees + z.subtrees
         else
           y.keys += [k] + z.keys
-          y.subtrees += z.subtrees unless y.leaf? && z.leaf?
+          y.subtrees += z.subtrees
 
           keys.delete_at subtree_index
           subtrees.delete_at subtree_index + 1
@@ -525,8 +524,8 @@ class BTree
         majors: keys[(NODES[:middle_index] + 1)..-1],
       },
       subtrees: {
-        minors: subtrees && subtrees[0..NODES[:middle_index]],
-        majors: subtrees && subtrees[NODES[:middle_index] + 1..-1],
+        minors: subtrees[0..NODES[:middle_index]] || [],
+        majors: subtrees[NODES[:middle_index] + 1..-1] || [],
       }
     }
   end
@@ -552,7 +551,7 @@ class BTree
   end
 end
 
-items = (1..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
+items = (0..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
