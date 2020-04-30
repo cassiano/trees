@@ -290,8 +290,6 @@ class BTree
 
   def draw_graph_tree(g, root_node)
     subtrees&.each_with_index do |subtree, index|
-      raise "Invalid parent #{parent} for sub-tree #{subtree}." if subtree.parent != self
-
       # https://www.graphviz.org/doc/info/shapes.html
       current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
 
@@ -390,19 +388,13 @@ class BTree
 
         parent_key = parent.keys[0]
 
+        puts "#{sibling[:type]} sibling being used." if DEBUG
+
         case sibling[:type]
           when :left
-            puts "Left sibling being used." if DEBUG
-
-            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
-
             parent.keys = sibling[:subtree].keys + [parent_key] + keys
             parent.subtrees = sibling[:subtree].subtrees && subtrees ? sibling[:subtree].subtrees + subtrees : nil
           when :right
-            puts "Right sibling being used." if DEBUG
-
-            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
-
             parent.keys = keys + [parent_key] + sibling[:subtree].keys
             parent.subtrees = subtrees && sibling[:subtree].subtrees ? subtrees + sibling[:subtree].subtrees : nil
         end
@@ -411,11 +403,7 @@ class BTree
       else
         case sibling[:type]
           when :left
-            puts "Left sibling being used." if DEBUG
-
             parent_key = parent.keys[stored_descendant_index - 1]
-
-            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
 
             self.keys = sibling[:subtree].keys + [parent_key] + keys
             self.subtrees = sibling[:subtree].subtrees + subtrees if subtrees && sibling[:subtree].subtrees
@@ -423,11 +411,7 @@ class BTree
             parent.keys.delete_at stored_descendant_index - 1
             parent.subtrees.delete_at stored_descendant_index - 1
           when :right
-            puts "Right sibling being used." if DEBUG
-
             parent_key = parent.keys[stored_descendant_index]
-
-            puts "Parent key: #{parent_key}, sibling.keys: #{sibling[:subtree].keys}, sibling.subtrees: #{sibling[:subtree].subtrees}" if DEBUG
 
             self.keys += [parent_key] + sibling[:subtree].keys
             self.subtrees += sibling[:subtree].subtrees if subtrees && sibling[:subtree].subtrees
