@@ -179,8 +179,8 @@ class BTree
         subtrees.all? { |subtree| subtree.parent == self } &&
         keys.each_with_index.all? do |key, i|
           (
-            subtrees[i    ].in_order.all? { |subtree_key| subtree_key <= key } &&
-            subtrees[i + 1].in_order.all? { |subtree_key| subtree_key  > key }
+            subtrees[i    ].traverse.all? { |subtree_key| subtree_key <= key } &&
+            subtrees[i + 1].traverse.all? { |subtree_key| subtree_key  > key }
           )
         end &&
         subtrees.all?(&:valid?)
@@ -217,12 +217,12 @@ class BTree
     (subtrees[0]&.height || 0) + 1
   end
 
-  def in_order
+  def traverse
     if leaf?
       keys
     else
       subtrees.each_with_index.reduce([]) do |memo, (subtree, i)|
-        memo + subtree.in_order + (i < keys_count ? [keys[i]] : [])
+        memo + subtree.traverse + (i < keys_count ? [keys[i]] : [])
       end
     end
   end
@@ -573,4 +573,4 @@ end
 @root.display
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-# i = 1; nodes = @root.in_order.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
+# i = 1; nodes = @root.traverse.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
