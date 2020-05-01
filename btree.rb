@@ -394,7 +394,7 @@ class BTree
       puts "#{sibling[:type]} sibling being used.#{' PS: randomly picked from both siblings.' if immediate_siblings.size > 1}" if DEBUG
 
       if parent.top_root? && parent.keys_count == 1
-        puts "Top root with a single key being merged (3b)." if DEBUG
+        puts "Top root with a single key being merged." if DEBUG
 
         parent_key = parent.keys[0]
 
@@ -503,9 +503,9 @@ class BTree
         puts "Case 2c detected." if DEBUG
 
         if top_root? && keys_count == 1
-          puts "Top root with a single key being merged (2c)." if DEBUG
+          puts "Top root with a single key being merged." if DEBUG
 
-          # Do the merging in the current node, instead of the y node (see below), effectively deleting k.
+          # Do the merging in the current node, instead of the y node (see `else` condition below).
           self.keys = y.keys + [k] + z.keys
           self.subtrees = y.subtrees + z.subtrees
 
