@@ -111,7 +111,7 @@ class BTree
       # No.
       subtree = subtrees[subtree_index]   # Store the subtree in a (temporary) variable, because it may change its index after an eventual merge (case 3b).
 
-      subtree.increment_key_size if subtree.minimum_node_size_reached?
+      subtree.increment_keys_size if subtree.minimum_node_size_reached?
 
       (subtree.merged_at || subtree).delete k
     end
@@ -175,6 +175,12 @@ class BTree
         subtrees_count == keys_count + 1 &&
         (tree_height = height) && subtrees.all? { |subtree| subtree.height == tree_height - 1 } &&
         subtrees.all? { |subtree| subtree.parent == self } &&
+        keys.each_with_index.all? do |key, i|
+          (
+            subtrees[i    ].in_order.all? { |subtree_key| subtree_key <= key } &&
+            subtrees[i + 1].in_order.all? { |subtree_key| subtree_key  > key }
+          )
+        end &&
         subtrees.all?(&:valid?)
     end
   end
@@ -355,7 +361,7 @@ class BTree
     [minors_subtree, majors_subtree, splitted[:middle_key]]
   end
 
-  def increment_key_size
+  def increment_keys_size
     puts "Incrementing keys size of node #{self}." if DEBUG
 
     stored_descendant_index = descendant_index
@@ -370,7 +376,7 @@ class BTree
 
       sibling = candidate_siblings.sample   # Pick any candidate sibling.
 
-      puts "#{sibling[:type]} sibling #{'(PS: randomly picked from both siblings) ' if candidate_siblings.size > 1}being used." if DEBUG
+      puts "#{sibling[:type]} sibling being used.#{' PS: randomly picked from both siblings.' if immediate_siblings.size > 1}" if DEBUG
 
       case sibling[:type]
         when :left
@@ -384,10 +390,10 @@ class BTree
 
       sibling = immediate_siblings.sample   # Pick any immediate sibling.
 
-      puts "#{sibling[:type]} sibling #{'(PS: randomly picked from both siblings) ' if immediate_siblings.size > 1}being used." if DEBUG
+      puts "#{sibling[:type]} sibling being used.#{' PS: randomly picked from both siblings.' if immediate_siblings.size > 1}" if DEBUG
 
       if parent.top_root? && parent.keys_count == 1
-        puts "Top root with a single key being merged." if DEBUG
+        puts "Top root with a single key being merged (3b)." if DEBUG
 
         parent_key = parent.keys[0]
 
@@ -496,11 +502,13 @@ class BTree
         puts "Case 2c detected." if DEBUG
 
         if top_root? && keys_count == 1
-          puts "Top root with a single key being merged." if DEBUG
+          puts "Top root with a single key being merged (2c)." if DEBUG
 
           # Do the merging in the current node, instead of the y node (see below), effectively deleting k.
-          self.keys = y.keys + z.keys
+          self.keys = y.keys + [k] + z.keys
           self.subtrees = y.subtrees + z.subtrees
+
+          delete k
         else
           y.keys += [k] + z.keys
           y.subtrees += z.subtrees
