@@ -439,8 +439,6 @@ class BTree
     left_sibling_highest_key = sibling[:subtree].keys[-1]
     left_sibling_highest_subtree = sibling[:subtree].subtrees[-1]
 
-    puts "parent_key: #{parent_key}, left_sibling_highest_key: #{left_sibling_highest_key}, left_sibling_highest_subtree: #{left_sibling_highest_subtree}" if DEBUG
-
     sibling[:subtree].keys.delete_at -1
     sibling[:subtree].subtrees.delete_at(-1)
     parent.keys[stored_descendant_index - 1] = left_sibling_highest_key
@@ -454,8 +452,6 @@ class BTree
     parent_key = parent.keys[stored_descendant_index]
     right_sibling_lowest_key = sibling[:subtree].keys[0]
     right_sibling_lowest_subtree = sibling[:subtree].subtrees[0]
-
-    puts "parent_key: #{parent_key}, right_sibling_lowest_key: #{right_sibling_lowest_key}, right_sibling_lowest_subtree: #{right_sibling_lowest_subtree}" if DEBUG
 
     sibling[:subtree].keys.delete_at 0
     sibling[:subtree].subtrees.delete_at(0)
