@@ -148,7 +148,9 @@ class BTree
   end
 
   def within_size_limits?
-    ((parent ? NODES[:min] : 1)..NODES[:max]).include? keys_count
+    minimum_size = top_root? ? 1 : NODES[:min]
+
+    (minimum_size..NODES[:max]).include? keys_count
   end
 
   def keys_count
@@ -264,7 +266,7 @@ class BTree
   end
 
   def delete_key(position)
-    raise "Invalid index #{position} when deleting key." if position > keys_count - 1
+    raise "Invalid index #{position} when deleting key." unless (0..keys_count - 1).include?(position)
 
     keys.delete_at position
   end
@@ -279,18 +281,17 @@ class BTree
   end
 
   def subtrees=(new_subtrees)
-    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if !new_subtrees.empty? && new_subtrees.size != keys_count + 1
+    raise "Subtrees size (#{new_subtrees.size}) must match number of keys (#{keys_count}) + 1." if new_subtrees.any? && new_subtrees.size != keys_count + 1
 
     @subtrees = new_subtrees
 
-    new_subtrees.each { |subtree| subtree.parent = self }
+    subtrees.each { |subtree| subtree.parent = self }
   end
 
   def keys=(new_keys)
-    raise "Minimum node size not reached for subtree #{self} when setting keys `#{keys.join(', ')}`." if new_keys.size < (parent ? NODES[:min] : 1)
-    raise "Maximum node size exceeded for subtree #{self} when setting keys `#{keys.join(', ')}`." if new_keys.size > NODES[:max]
-
     @keys = new_keys
+
+    raise "Invalid node size for subtree #{self} when setting keys `#{keys.join(', ')}`." unless within_size_limits?
   end
 
   def draw_graph_tree(g, root_node)
