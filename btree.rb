@@ -4,66 +4,18 @@
 require 'ruby-graphviz'
 require 'securerandom'
 
-DEBUG = false
-
-module BTreeCaching
-  def self.included(base)
-    base.extend ClassMethods
-
-    base.class_eval do
-      attr_accessor :cache
-
-      protected :cache=
-    end
-  end
-
-  def initialize_cache
-    self.cache = {}
-  end
-
-  def fetch_from_cache(method_name, *args, &block)
-    if cache.has_key?(method_name)
-      if cache[method_name].has_key?(args)
-        return cache[method_name][args]
-      end
-    else
-      cache[method_name] = {}
-    end
-
-    puts "Filling cache for method `#{method_name}` and arguments #{args} for node `#{keys.join(', ')}`" if DEBUG
-
-    cache[method_name][args] = block.call
-  end
-
-  module ClassMethods
-    def enable_cache_for(*methods)
-      methods.each do |method|
-        alias_method :"original_#{method}", method
-
-        define_method(method) do |*args|
-          fetch_from_cache method, args do
-            send :"original_#{method}", *args
-          end
-        end
-      end
-    end
-  end
-end
-
 # https://www.geeksforgeeks.org/introduction-of-b-tree-2/
 class BTree
-  CACHING = true
+  DEBUG = true
   ASSERTIONS = true
   ALGORITHM = :reactive    # :proactive
-  T = 50   # Minimum degree.
+  T = 3   # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
     middle_index: T - 1,
   }
   ELLIPSIS = '…'
-
-  include BTreeCaching if CACHING
 
   class EmptyBTreeError < StandardError
   end
@@ -72,8 +24,6 @@ class BTree
   attr_accessor :merged_at
 
   def initialize(key_or_keys, subtrees: nil, parent: nil)
-    initialize_cache if CACHING   # Always put it at the beginning of the constructor.
-
     keys = [*key_or_keys]
 
     self.parent = parent
@@ -128,8 +78,6 @@ class BTree
             raise "Empty node reached when adding key `#{key}` to non-leaf node #{self}."
           end
       end
-
-      clear_ancestors_caches if CACHING
     end
 
     if ASSERTIONS
@@ -150,12 +98,7 @@ class BTree
     if subtree_index < keys_count && keys[subtree_index] == k
       # Yes.
       if leaf?
-        # Case 1.
-        puts "Case 1 detected." if DEBUG
-
-        delete_key subtree_index
-
-        raise EmptyBTreeError if top_root? && keys_count == 0
+        delete_from_leaf_node subtree_index
       else
         delete_from_non_leaf_node k, subtree_index
       end
@@ -169,8 +112,6 @@ class BTree
         (subtree.merged_at || subtree).delete k
       end
     end
-
-    clear_ancestors_caches if CACHING
 
     if ASSERTIONS
       raise "Invalid tree after deleting #{k} from node #{self}." unless top_root.valid?
@@ -289,16 +230,6 @@ class BTree
     end
   end
 
-  def clear_ancestors_caches
-    ancestors.each &:clear_cache
-  end
-
-  def clear_cache
-    puts "Clearing cache for node `#{keys.join(', ')}`" if DEBUG
-
-    initialize_cache
-  end
-
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
     { keys: keys, subtrees: subtrees&.map(&:to_s) }.to_s
@@ -335,8 +266,6 @@ class BTree
     raise "Maximum node size exceeded for subtree #{self} when inserting key `#{key}` at position #{position}." if full?
 
     keys.insert position, key
-
-    clear_ancestors_caches if CACHING
   end
 
   def insert_subtree(subtree, position)
@@ -345,29 +274,21 @@ class BTree
     if subtree
       subtrees.insert position, subtree
       subtree.parent = self
-
-      clear_ancestors_caches if CACHING
     end
   end
 
   def delete_key(position)
     keys.delete_at position
-
-    clear_ancestors_caches if CACHING
   end
 
   def delete_subtree(position)
     subtrees.delete_at position
-
-    clear_ancestors_caches if CACHING
   end
 
   def keys=(new_keys)
     @keys = new_keys
 
     raise "Invalid node size for subtree #{self} when setting keys `#{keys.join(', ')}`." unless within_size_limits?
-
-    clear_ancestors_caches if CACHING
   end
 
   def subtrees=(new_subtrees)
@@ -376,8 +297,6 @@ class BTree
     @subtrees = new_subtrees
 
     subtrees.each { |subtree| subtree.parent = self }
-
-    clear_ancestors_caches if CACHING
   end
 
   def draw_graph_tree(g, root_node)
@@ -556,6 +475,15 @@ class BTree
     end
   end
 
+  def delete_from_leaf_node(subtree_index)
+    # Case 1.
+    puts "Case 1 detected." if DEBUG
+
+    delete_key subtree_index
+
+    raise EmptyBTreeError if top_root? && keys_count == 0
+  end
+
   def delete_from_non_leaf_node(k, subtree_index)
     # Check if child y that precedes k in current node has at least T keys.
     y = subtrees[subtree_index]
@@ -638,14 +566,9 @@ class BTree
 
     current.parent.keys[current.descendant_index] if current.parent
   end
-
-  if CACHING
-    enable_cache_for :predecessor, :successor, :maximum_node_size_reached?, :valid?, :keys_count, :subtrees_count, :total_keys_count, :total_nodes_count, :average_keys_count, :find,
-                     :height, :traverse, :find_subtree_index, :find_subtree, :split_keys_and_subtrees
-  end
 end
 
-items = (0..(2 ** 12 - 1)).map { |i| i * 10 }.shuffle
+items = (0..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
 p items
 
@@ -657,7 +580,7 @@ items.each_with_index do |item, i|
   @root.add item
 end
 
-# @root.display
+@root.display
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-i = 1; nodes = @root.traverse.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
+# i = 1; nodes = @root.traverse.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
