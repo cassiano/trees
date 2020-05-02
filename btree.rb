@@ -9,7 +9,7 @@ class BTree
   DEBUG = true
   ASSERTIONS = true
   ALGORITHM = :reactive    # :proactive
-  T = 3   # Minimum degree.
+  T = 2  # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
@@ -436,6 +436,31 @@ class BTree
     end
   end
 
+  def delete_predecessor
+    delete_predecessor_or_successor true
+  end
+
+  def delete_successor
+    delete_predecessor_or_successor false
+  end
+
+  def delete_predecessor_or_successor(is_predecessor)
+    searched_index = is_predecessor ? -1 : 0
+
+    if leaf?
+      # Return the key being deleted.
+      keys[searched_index].tap do
+        delete_from_leaf_node searched_index
+      end
+    else
+      subtree = subtrees[searched_index]   # Store the subtree in a (temporary) variable, because it may change its index after an eventual merge (case 3b).
+
+      subtree.increment_keys_size if subtree.minimum_node_size_reached?
+
+      (subtree.merged_at || subtree).delete_predecessor_or_successor is_predecessor
+    end
+  end
+
   private
 
   def move_key_from_left_sibling(sibling, stored_descendant_index)
@@ -492,8 +517,7 @@ class BTree
       # Case 2a.
       puts "Case 2a detected." if DEBUG
 
-      k0 = y.predecessor
-      y.delete k0
+      k0 = y.delete_predecessor
 
       keys[subtree_index] = k0
     else
@@ -504,8 +528,7 @@ class BTree
         # Case 2b.
         puts "Case 2b detected." if DEBUG
 
-        k0 = z.successor
-        z.delete k0
+        k0 = z.delete_successor
 
         keys[subtree_index] = k0
       else
