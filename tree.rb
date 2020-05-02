@@ -363,7 +363,7 @@ class BST < Tree
     raise "Please supply a non-null node value." if node_value.nil?
     raise "Incompatible type `#{node_value.class}` being added." unless value <=> node_value && node_value <=> value
 
-    begin
+    result = begin
       case compare(node_value, value)
         when LESS_THAN, EQUAL_TO
           if left
@@ -382,16 +382,18 @@ class BST < Tree
             end
           end
       end
-    ensure
-      clear_ancestors_caches if CACHING
     end
+
+    clear_ancestors_caches if CACHING
+
+    result
   end
 
   # https://www.geeksforgeeks.org/binary-find-tree-set-2-delete/
   def delete(node_or_value)
     return unless (node = node_or_value.is_a?(self.class) ? node_or_value : find(node_or_value))
 
-    begin
+    result = begin
       node_parent = node.parent
 
       # Has both children?
@@ -417,9 +419,11 @@ class BST < Tree
           raise EmptyTreeError
         end
       end
-    ensure
-      node_parent&.clear_ancestors_caches if CACHING
     end
+
+    node_parent&.clear_ancestors_caches if CACHING
+
+    result
   end
 
   def find(node_value)
