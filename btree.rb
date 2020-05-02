@@ -230,7 +230,7 @@ class BTree
 
   # https://stackoverflow.com/questions/25488902/what-happens-when-you-use-string-interpolation-in-ruby
   def to_s
-    { keys: keys, subtrees: subtrees&.map(&:to_s) }.to_s
+    { keys: keys, subtrees: subtrees.map(&:to_s) }.to_s
   end
 
   alias_method :inspect, :to_s
@@ -410,6 +410,8 @@ class BTree
             parent.subtrees = subtrees + sibling[:subtree].subtrees
         end
 
+        # Warn the caller of this method that the current node has been exceptionally merged at its parent, so the delete operation that follows takes place there. See methods
+        # `find_and_delete_from_subtree` and `delete_predecessor_or_successor` for details.
         self.merged_at = parent
       else
         case sibling[:type]
