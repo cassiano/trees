@@ -94,22 +94,18 @@ class BTree
 
     subtree_index = find_subtree_index(k)
 
-    # Was key found in this node?
-    if subtree_index < keys_count && keys[subtree_index] == k
-      # Yes.
+    if key_found?(k, subtree_index)
       if leaf?
         delete_from_leaf_node subtree_index
-      else
+      else  # Internal node.
         delete_from_non_leaf_node k, subtree_index
       end
     else
-      # No.
       if non_leaf?
-        subtree = subtrees[subtree_index]   # Store the subtree in a (temporary) variable, because it may change its index after an eventual merge (case 3b).
-
-        subtree.increment_keys_size if subtree.minimum_node_size_reached?
-
-        (subtree.merged_at || subtree).delete k
+        # Internal node.
+        find_and_delete_from_subtree k, subtree_index
+      else
+        raise "Key #{k} not found."
       end
     end
 
@@ -202,13 +198,15 @@ class BTree
     total_keys_count.to_f / total_nodes_count
   end
 
-  def find(key)
-    subtree_index = find_subtree_index(key)
+  def find(k)
+    subtree_index = find_subtree_index(k)
 
-    if subtree_index < keys_count && keys[subtree_index] == key
+    if key_found?(k, subtree_index)
       self
     elsif non_leaf?
-      subtrees[subtree_index].find key
+      subtrees[subtree_index].find k
+    else
+      raise "Key #{k} not found."
     end
   end
 
@@ -463,6 +461,10 @@ class BTree
 
   private
 
+  def key_found?(k, subtree_index)
+    subtree_index < keys_count && keys[subtree_index] ==k
+  end
+
   def move_key_from_left_sibling(sibling, stored_descendant_index)
     # Move the left sibling's highest key up (to its parent node) and the parent node's respective key down to the left of current node.
     parent_key = parent.keys[stored_descendant_index - 1]
@@ -554,6 +556,14 @@ class BTree
         end
       end
     end
+  end
+
+  def find_and_delete_from_subtree(k, subtree_index)
+    subtree = subtrees[subtree_index]   # Store the subtree in a (temporary) variable, because it may change its index after an eventual merge (case 3b).
+
+    subtree.increment_keys_size if subtree.minimum_node_size_reached?
+
+    (subtree.merged_at || subtree).delete k
   end
 
   def split_keys_and_subtrees
