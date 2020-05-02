@@ -9,7 +9,7 @@ class BTree
   DEBUG = true
   ASSERTIONS = true
   ALGORITHM = :reactive    # :proactive
-  T = 2  # Minimum degree.
+  T = 3  # Minimum degree.
   NODES = {
     min: T - 1,
     max: 2 * T - 1,
@@ -97,12 +97,11 @@ class BTree
     if key_found?(k, subtree_index)
       if leaf?
         delete_from_leaf_node subtree_index
-      else  # Internal node.
+      else
         delete_from_non_leaf_node k, subtree_index
       end
     else
       if non_leaf?
-        # Internal node.
         find_and_delete_from_subtree k, subtree_index
       else
         raise "Key #{k} not found."
@@ -603,13 +602,13 @@ class BTree
   end
 end
 
-items = (0..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
+@items = (0..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
 
-p items
+p @items
 
-@root = BTree.new(items.shift)
+@root = BTree.new(@items[0])
 
-items.each_with_index do |item, i|
+@items[1..-1].each_with_index do |item, i|
   puts i if i % 1000 == 0
 
   @root.add item
@@ -618,4 +617,4 @@ end
 @root.display
 puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-# i = 1; nodes = @root.traverse.shuffle; loop { break if nodes.empty?; key = nodes.shift; puts "---> (#{i}) Deleting #{key}..."; @root.delete key; i += 1 }
+# @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
