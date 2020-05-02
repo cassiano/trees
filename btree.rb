@@ -436,15 +436,15 @@ class BTree
   end
 
   def delete_predecessor
-    delete_predecessor_or_successor true
+    delete_predecessor_or_successor :predecessor
   end
 
   def delete_successor
-    delete_predecessor_or_successor false
+    delete_predecessor_or_successor :successor
   end
 
-  def delete_predecessor_or_successor(is_predecessor)
-    searched_index = is_predecessor ? -1 : 0
+  def delete_predecessor_or_successor(type)
+    searched_index = type == :predecessor ? -1 : 0
 
     if leaf?
       # Return the key being deleted.
@@ -456,7 +456,7 @@ class BTree
 
       subtree.increment_keys_size if subtree.minimum_node_size_reached?
 
-      (subtree.merged_at || subtree).delete_predecessor_or_successor is_predecessor
+      (subtree.merged_at || subtree).delete_predecessor_or_successor type
     end
   end
 
