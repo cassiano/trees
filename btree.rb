@@ -92,9 +92,9 @@ class BTree
       raise "Invalid node size before deleting #{k} from node #{self}." if !top_root? && minimum_node_size_reached?
     end
 
-    subtree_index = find_subtree_index(k)
+    key_found, subtree_index = key_found?(k)
 
-    if key_found?(k, subtree_index)
+    if key_found
       if leaf?
         delete_from_leaf_node subtree_index
       else
@@ -198,9 +198,9 @@ class BTree
   end
 
   def find(k)
-    subtree_index = find_subtree_index(k)
+    key_found, subtree_index = key_found?(k)
 
-    if key_found?(k, subtree_index)
+    if key_found
       self
     elsif non_leaf?
       subtrees[subtree_index].find k
@@ -462,8 +462,10 @@ class BTree
 
   private
 
-  def key_found?(k, subtree_index)
-    subtree_index < keys_count && keys[subtree_index] ==k
+  def key_found?(k)
+    subtree_index = find_subtree_index(k)
+    
+    [subtree_index < keys_count && keys[subtree_index] == k, subtree_index]
   end
 
   def move_key_from_left_sibling(sibling, stored_descendant_index)
