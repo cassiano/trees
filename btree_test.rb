@@ -16,19 +16,38 @@ expect('Adding 10, 20, 30, 40, 50 should not cause a split') {
 expect('Adding 60 should split the root node') {
   root.tap { root.add 60 }
 }.to_equal(
-  BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60])])
+  BTree.new(
+    30,
+    subtrees: [
+      BTree.new([10, 20]),
+      BTree.new([40, 50, 60])
+    ]
+  )
 )
 
 expect('Adding 70, 80 should not cause a split in the right child node') {
   root.tap { [70, 80].each { |key| root.add key } }
 }.to_equal(
-  BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60, 70, 80])])
+  BTree.new(
+    30,
+    subtrees: [
+      BTree.new([10, 20]),
+      BTree.new([40, 50, 60, 70, 80])
+    ]
+  )
 )
 
 expect('Adding 90 should split the right child node') {
   root.tap { root.add 90 }
 }.to_equal(
-  BTree.new([30, 60], subtrees: [BTree.new([10, 20]), BTree.new([40, 50]), BTree.new([70, 80, 90])])
+  BTree.new(
+    [30, 60],
+    subtrees: [
+      BTree.new([10, 20]),
+      BTree.new([40, 50]),
+      BTree.new([70, 80, 90])
+    ]
+  )
 )
 
 puts "--- Testing delete() method ---"

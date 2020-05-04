@@ -10,9 +10,9 @@ class TestExpectation
 
   def to_be_true(expected_value)
     if actual_value.send(expected_value)
-      puts "--> `#{test_title}` test passed.".green
+      passed
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return a truthy value.".red
+      failed "Expected: `#{expected_value}` to return a truthy value."
     end
 
     self
@@ -20,9 +20,9 @@ class TestExpectation
 
   def not_to_be_true(expected_value)
     unless actual_value.send(expected_value)
-      puts "--> `#{test_title}` test passed.".green
+      passed
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` not to return a truthy value.".red
+      failed "Expected: `#{expected_value}` not to return a truthy value."
     end
 
     self
@@ -30,9 +30,9 @@ class TestExpectation
 
   def to_equal(expected_value)
     if actual_value == expected_value
-      puts "--> `#{test_title}` test passed.".green
+      passed
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}`, \nGot `#{actual_value}`.".red
+      failed "Expected: `#{expected_value}`, \nGot `#{actual_value}`."
     end
 
     self
@@ -40,12 +40,22 @@ class TestExpectation
 
   def not_to_equal(expected_value)
     if actual_value != expected_value
-      puts "--> `#{test_title}` test passed.".green
+      passed
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}`, \nGot `#{actual_value}`.".red
+      failed "Expected: `#{expected_value}`, \nGot `#{actual_value}`."
     end
 
     self
+  end
+
+  private
+
+  def passed
+    puts "--> `#{test_title}` test passed.".green
+  end
+
+  def failed(message)
+    puts "--> `#{test_title}` test failed.\n#{message}".red
   end
 end
 
