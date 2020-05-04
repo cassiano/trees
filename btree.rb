@@ -118,7 +118,7 @@ class BTree
 
   def ancestors
     [self].tap do |ancestors_path|
-      ancestors_path.concat parent.ancestors if parent
+      ancestors_path.concat parent.ancestors unless top_root?
     end
   end
 
@@ -344,9 +344,13 @@ class BTree
     splitted_keys = splitted[:keys]
     splitted_subtrees = splitted[:subtrees]
 
-    # Top root key?
-    if parent
-      # No.
+    if top_root?
+      minors_subtree = self.class.new(splitted_keys[:minors], subtrees: splitted_subtrees[:minors], parent: self)
+      majors_subtree = self.class.new(splitted_keys[:majors], subtrees: splitted_subtrees[:majors], parent: self)
+
+      self.keys = [splitted[:middle_key]]
+      self.subtrees = [minors_subtree, majors_subtree]
+    else
       if ALGORITHM == :reactive
         parent.split_child(key) if parent.full?
       end
@@ -367,13 +371,6 @@ class BTree
       # Update the current key to include only the majors' keys (and corresponding sub-trees).
       self.keys = splitted_keys[:majors]
       self.subtrees = splitted_subtrees[:majors]
-    else
-      # Yes.
-      minors_subtree = self.class.new(splitted_keys[:minors], subtrees: splitted_subtrees[:minors], parent: self)
-      majors_subtree = self.class.new(splitted_keys[:majors], subtrees: splitted_subtrees[:majors], parent: self)
-
-      self.keys = [splitted[:middle_key]]
-      self.subtrees = [minors_subtree, majors_subtree]
     end
 
     [minors_subtree, majors_subtree, splitted[:middle_key]]
@@ -609,26 +606,26 @@ class BTree
   def find_first_ancestor_key_with_non_minimum_descendant_index
     current = self
 
-    while current.parent && current.descendant_index == 0
+    while !current.top_root? && current.descendant_index == 0
       current = current.parent
     end
 
-    current.parent.keys[current.descendant_index - 1] if current.parent
+    current.parent.keys[current.descendant_index - 1] unless current.top_root?
   end
 
   def find_first_ancestor_key_with_non_maximum_descendant_index
     current = self
 
-    while current.parent && current.descendant_index == current.parent.keys_count
+    while !current.top_root? && current.descendant_index == current.parent.keys_count
       current = current.parent
     end
 
-    current.parent.keys[current.descendant_index] if current.parent
+    current.parent.keys[current.descendant_index] unless current.top_root?
   end
 end
 
 if __FILE__ == $0
-  @items = (0..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
+  @items = (0..(2 ** 10 - 1)).map { |i| i * 10 }.shuffle
 
   p @items
 
@@ -644,4 +641,6 @@ if __FILE__ == $0
   puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
   @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
+
+  puts "\nTotal keys count: #{@root.total_keys_count}"
 end

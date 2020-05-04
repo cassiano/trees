@@ -1,11 +1,13 @@
 require './btree.rb'
 require './test_spec.rb'
 
-puts "--- Testing add() method ---"
+puts "===== Testing add() method ====="
 
 root = BTree.new
 
-expect('Adding 10, 20, 30, 40, 50 should not cause a split') {
+expect("BTree's minimum degree should be 3 for all tests") { BTree::T }.to_equal(3)
+
+expect('Adding 10, 20, 30, 40, 50 should be done in a single node (top root)') {
   root.tap { [10, 20, 30, 40, 50].each { |key| root.add key } }
 }
   .to_be_true(:valid?)
@@ -25,7 +27,7 @@ expect('Adding 60 should split the root node') {
   )
 )
 
-expect('Adding 70, 80 should not cause a split in the right child node') {
+expect('Adding 70, 80 should be done in the right child node') {
   root.tap { [70, 80].each { |key| root.add key } }
 }.to_equal(
   BTree.new(
@@ -50,7 +52,7 @@ expect('Adding 90 should split the right child node') {
   )
 )
 
-puts "--- Testing delete() method ---"
+puts "===== Testing delete() method ====="
 
 root = BTree.new(
   :P,
