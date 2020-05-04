@@ -11,26 +11,23 @@ class BTree
   ALGORITHM = :reactive    # :proactive
   T = 3  # Minimum degree.
   NODES = {
-    min: T - 1,
+    min: T - 1,   # Except for top root.
     max: 2 * T - 1,
     middle_index: T - 1,
   }
   ELLIPSIS = '…'
-
-  class EmptyBTreeError < StandardError
-  end
 
   include Comparable
 
   attr_reader :keys, :subtrees, :parent
   attr_accessor :merged_at
 
-  def initialize(key_or_keys, subtrees: nil, parent: nil)
+  def initialize(key_or_keys = [], subtrees: [], parent: nil)
     keys = [*key_or_keys]
 
     self.parent = parent
     self.keys = keys
-    self.subtrees = subtrees || []
+    self.subtrees = subtrees
   end
 
   # https://www.geeksforgeeks.org/insert-operation-in-b-tree/
@@ -148,13 +145,11 @@ class BTree
   alias_method :full?, :maximum_node_size_reached?
 
   def minimum_node_size_reached?
-    keys_count == (parent ? NODES[:min] : 1)
+    keys_count == minimum_keys_count
   end
 
   def within_size_limits?
-    minimum_size = top_root? ? 1 : NODES[:min]
-
-    (minimum_size..NODES[:max]).include? keys_count
+    (minimum_keys_count..NODES[:max]).include? keys_count
   end
 
   def keys_count
@@ -166,7 +161,7 @@ class BTree
   end
 
   def leaf?
-    subtrees.empty?
+    subtrees ? subtrees.empty? : true
   end
 
   def non_leaf?
@@ -200,7 +195,7 @@ class BTree
   end
 
   def average_keys_count
-    total_keys_count.to_f / total_nodes_count
+    total_keys_count.to_f / total_nodes_count if total_nodes_count > 0
   end
 
   def find(k)
@@ -254,16 +249,16 @@ class BTree
   end
 
   def <=>(another_btree)
-    return unless another_btree
-
-    if (parent_comparison = parent <=> another_btree.parent) == 0
-      if (keys_comparison = keys <=> another_btree.keys) == 0
-        subtrees <=> another_btree.subtrees
+    if BTree === another_btree
+      if (parent_comparison = parent <=> another_btree.parent) == 0
+        if (keys_comparison = keys <=> another_btree.keys) == 0
+          subtrees <=> another_btree.subtrees
+        else
+          keys_comparison
+        end
       else
-        keys_comparison
+        parent_comparison
       end
-    else
-      parent_comparison
     end
   end
 
@@ -482,6 +477,16 @@ class BTree
 
   private
 
+  def minimum_keys_count
+    if !top_root?
+      NODES[:min]
+    elsif non_leaf?
+      1
+    else
+      0
+    end
+  end
+
   def key_found?(k)
     subtree_index = find_subtree_index(k)
 
@@ -530,8 +535,6 @@ class BTree
     puts "Case 1 detected." if DEBUG
 
     delete_key subtree_index
-
-    raise EmptyBTreeError if top_root? && keys_count == 0
   end
 
   def delete_from_non_leaf_node(k, subtree_index)
@@ -640,5 +643,5 @@ if __FILE__ == $0
   @root.display
   puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
 
-  # @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
+  @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
 end

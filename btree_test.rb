@@ -3,10 +3,10 @@ require './test_spec.rb'
 
 puts "--- Testing add() method ---"
 
-root = BTree.new(10)
+root = BTree.new
 
-expect('Adding 20, 30, 40, 50 should not cause a split') {
-  root.tap { [20, 30, 40, 50].each { |key| root.add key } }
+expect('Adding 10, 20, 30, 40, 50 should not cause a split') {
+  root.tap { [10, 20, 30, 40, 50].each { |key| root.add key } }
 }
   .to_be_true(:valid?)
   .to_equal(
@@ -19,7 +19,7 @@ expect('Adding 60 should split the root node') {
   BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60])])
 )
 
-expect('Adding 70, 80 should not cause a split') {
+expect('Adding 70, 80 should not cause a split in the right child node') {
   root.tap { [70, 80].each { |key| root.add key } }
 }.to_equal(
   BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60, 70, 80])])
