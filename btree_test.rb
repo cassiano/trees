@@ -8,7 +8,7 @@ root = BTree.new(10)
 expect('Adding 20, 30, 40, 50 should not cause a split') {
   root.tap { [20, 30, 40, 50].each { |key| root.add key } }
 }
-  .to_be(:valid?)
+  .to_be_true(:valid?)
   .to_equal(
     BTree.new([10, 20, 30, 40, 50])
   )
@@ -194,7 +194,7 @@ expect('Deleting B should yield case 3a') {
 #         )
 #       ]
 #     )
-#     assert_equal true, root.valid?
+#     assert root.valid?
 #
 #     assert_equal(
 #       BTree.new(
@@ -221,7 +221,7 @@ expect('Deleting B should yield case 3a') {
 #       ),
 #       root.tap { root.delete :F }
 #     )
-#     assert_equal true, root.valid?
+#     assert root.valid?
 #
 #     assert_equal(
 #       BTree.new(
@@ -248,7 +248,7 @@ expect('Deleting B should yield case 3a') {
 #       ),
 #       root.tap { root.delete :M }
 #     )
-#     assert_equal true, root.valid?
+#     assert root.valid?
 #   end
 #
 #   def test_that_add_works_as_expected
@@ -258,6 +258,6 @@ expect('Deleting B should yield case 3a') {
 #       BTree.new([10, 20, 30, 40, 50]),
 #       root.tap { [20, 30, 40, 50].each { |key| root.add key } }
 #     )
-#     assert_equal true, root.valid?
+#     assert root.valid?
 #   end
 # end

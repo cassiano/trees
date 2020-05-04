@@ -8,21 +8,21 @@ class TestExpectation
     @actual_value = actual_value
   end
 
-  def to_be(expected_value)
+  def to_be_true(expected_value)
     if actual_value.send(expected_value)
       puts "--> `#{test_title}` test passed.".green
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return true.".red
+      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return a truthy value.".red
     end
 
     self
   end
 
-  def not_to_be(expected_value)
+  def not_to_be_true(expected_value)
     unless actual_value.send(expected_value)
       puts "--> `#{test_title}` test passed.".green
     else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return false.".red
+      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` not to return a truthy value.".red
     end
 
     self
