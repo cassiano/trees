@@ -20,6 +20,8 @@ class BTree
   class EmptyBTreeError < StandardError
   end
 
+  include Comparable
+
   attr_reader :keys, :subtrees, :parent
   attr_accessor :merged_at
 
@@ -92,25 +94,29 @@ class BTree
       raise "Invalid node size before deleting #{k} from node #{self}." if !top_root? && minimum_node_size_reached?
     end
 
-    key_found, subtree_index = key_found?(k)
+    result = begin
+      key_found, subtree_index = key_found?(k)
 
-    if key_found
-      if leaf?
-        delete_from_leaf_node subtree_index
+      if key_found
+        if leaf?
+          delete_from_leaf_node subtree_index
+        else
+          delete_from_non_leaf_node k, subtree_index
+        end
       else
-        delete_from_non_leaf_node k, subtree_index
-      end
-    else
-      if non_leaf?
-        find_and_delete_from_subtree k, subtree_index
-      else
-        raise "Key #{k} not found."
+        if non_leaf?
+          find_and_delete_from_subtree k, subtree_index
+        else
+          raise "Key #{k} not found."
+        end
       end
     end
 
     if ASSERTIONS
       raise "Invalid tree after deleting #{k} from node #{self}." unless top_root.valid?
     end
+
+    result
   end
 
   def ancestors
@@ -245,6 +251,20 @@ class BTree
   def display
     as_graphviz
     `open tree.png`
+  end
+
+  def <=>(another_btree)
+    return unless another_btree
+
+    if (parent_comparison = parent <=> another_btree.parent) == 0
+      if (keys_comparison = keys <=> another_btree.keys) == 0
+        subtrees <=> another_btree.subtrees
+      else
+        keys_comparison
+      end
+    else
+      parent_comparison
+    end
   end
 
   protected
@@ -464,7 +484,7 @@ class BTree
 
   def key_found?(k)
     subtree_index = find_subtree_index(k)
-    
+
     [subtree_index < keys_count && keys[subtree_index] == k, subtree_index]
   end
 
@@ -604,19 +624,21 @@ class BTree
   end
 end
 
-@items = (0..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
+if __FILE__ == $0
+  @items = (0..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
 
-p @items
+  p @items
 
-@root = BTree.new(@items[0])
+  @root = BTree.new(@items[0])
 
-@items[1..-1].each_with_index do |item, i|
-  puts i if i % 1000 == 0
+  @items[1..-1].each_with_index do |item, i|
+    puts i if i % 1000 == 0
 
-  @root.add item
+    @root.add item
+  end
+
+  @root.display
+  puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
+
+  # @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
 end
-
-@root.display
-puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
-
-# @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
