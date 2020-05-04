@@ -1,80 +1,12 @@
 require './btree.rb'
-require 'colored'
-
-class ExpectionResult
-  attr_reader :test_title, :actual_value
-
-  def initialize(test_title, actual_value)
-    @test_title = test_title
-    @actual_value = actual_value
-  end
-
-  def to_be(expected_value)
-    if actual_value.send(expected_value)
-      puts "--> `#{test_title}` test passed.".green
-    else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return true.".red
-    end
-
-    self
-  end
-
-  def not_to_be(expected_value)
-    unless actual_value.send(expected_value)
-      puts "--> `#{test_title}` test passed.".green
-    else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}` to return false.".red
-    end
-
-    self
-  end
-
-  def to_equal(expected_value)
-    if actual_value == expected_value
-      puts "--> `#{test_title}` test passed.".green
-    else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}`, \nGot `#{actual_value}`.".red
-    end
-
-    self
-  end
-
-  def not_to_equal(expected_value)
-    if actual_value != expected_value
-      puts "--> `#{test_title}` test passed.".green
-    else
-      puts "--> `#{test_title}` test failed.\nExpected: `#{expected_value}`, \nGot `#{actual_value}`.".red
-    end
-
-    self
-  end
-end
-
-def expect(test_title, &block)
-  begin
-    ExpectionResult.new test_title, block.call
-  rescue => e
-    ExpectionResult.new test_title, "Exception raised: `#{e.message}`"
-  end
-end
-
-# def assert(test_title, expected_value, &block)
-#   actual_value = block.call
-#
-#   if actual_value == expected_value
-#     puts "--> `#{test_title}` test passed.".green
-#   else
-#     puts "--> `#{test_title}` test failed. Expected: `#{expected_value}`, got `#{actual_value}`.".red
-#   end
-# end
+require './test_spec.rb'
 
 puts "--- Testing add() method ---"
 
 root = BTree.new(10)
 
 expect('Adding 20, 30, 40, 50 should not cause a split') {
-  [20, 30, 40, 50].each { |key| root.add key }
-  root
+  root.tap { [20, 30, 40, 50].each { |key| root.add key } }
 }
   .to_be(:valid?)
   .to_equal(
@@ -82,22 +14,19 @@ expect('Adding 20, 30, 40, 50 should not cause a split') {
   )
 
 expect('Adding 60 should split the root node') {
-  root.add 60
-  root
+  root.tap { root.add 60 }
 }.to_equal(
   BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60])])
 )
 
 expect('Adding 70, 80 should not cause a split') {
-  [70, 80].each { |key| root.add key }
-  root
+  root.tap { [70, 80].each { |key| root.add key } }
 }.to_equal(
   BTree.new(30, subtrees: [BTree.new([10, 20]), BTree.new([40, 50, 60, 70, 80])])
 )
 
 expect('Adding 90 should split the right child node') {
-  root.add 90
-  root
+  root.tap { root.add 90 }
 }.to_equal(
   BTree.new([30, 60], subtrees: [BTree.new([10, 20]), BTree.new([40, 50]), BTree.new([70, 80, 90])])
 )
@@ -128,8 +57,7 @@ root = BTree.new(
 )
 
 expect('Deleting F should yield case 1') {
-  root.delete :F
-  root
+  root.tap { root.delete :F }
 }.to_equal(
   BTree.new(
     :P,
@@ -156,8 +84,7 @@ expect('Deleting F should yield case 1') {
 )
 
 expect('Deleting M should yield case 2a') {
-  root.delete :M
-  root
+  root.tap { root.delete :M }
 }.to_equal(
   BTree.new(
     :P,
@@ -184,8 +111,7 @@ expect('Deleting M should yield case 2a') {
 )
 
 expect('Deleting G should yield case 2c') {
-  root.delete :G
-  root
+  root.tap { root.delete :G }
 }.to_equal(
   BTree.new(
     :P,
@@ -211,8 +137,7 @@ expect('Deleting G should yield case 2c') {
 )
 
 expect('Deleting D should yield case 3b') {
-  root.delete :D
-  root
+  root.tap { root.delete :D }
 }.to_equal(
   BTree.new(
     [:C, :L, :P, :T, :X],
@@ -228,8 +153,7 @@ expect('Deleting D should yield case 3b') {
 )
 
 expect('Deleting B should yield case 3a') {
-  root.delete :B
-  root
+  root.tap { root.delete :B }
 }.to_equal(
   BTree.new(
     [:E, :L, :P, :T, :X],
@@ -246,9 +170,9 @@ expect('Deleting B should yield case 3a') {
 
 # require "minitest/autorun"
 #
-# describe BTree do
-#   before do
-#     @root = BTree.new(
+# class TestMeme < MiniTest::Unit::TestCase
+#   def test_that_delete_works_as_expected
+#     root = BTree.new(
 #       :P,
 #       subtrees: [
 #         BTree.new(
@@ -270,13 +194,10 @@ expect('Deleting B should yield case 3a') {
 #         )
 #       ]
 #     )
-#   end
+#     assert_equal true, root.valid?
 #
-#   describe "Deleting nodes should yield expected and valid B-trees" do
-#     it "Deleting F should yield case 1" do
-#       @root.delete :F
-#
-#       _(@root).must_equal(BTree.new(
+#     assert_equal(
+#       BTree.new(
 #         :P,
 #         subtrees: [
 #           BTree.new(
@@ -297,15 +218,12 @@ expect('Deleting B should yield case 3a') {
 #             ]
 #           )
 #         ]
-#       )
+#       ),
+#       root.tap { root.delete :F }
 #     )
-#     end
-#   end
+#     assert_equal true, root.valid?
 #
-#   it "Deleting M should yield case 2a" do
-#     @root.delete :M
-#
-#     _(@root).must_equal(
+#     assert_equal(
 #       BTree.new(
 #         :P,
 #         subtrees: [
@@ -327,7 +245,19 @@ expect('Deleting B should yield case 3a') {
 #             ]
 #           )
 #         ]
-#       )
+#       ),
+#       root.tap { root.delete :M }
 #     )
+#     assert_equal true, root.valid?
+#   end
+#
+#   def test_that_add_works_as_expected
+#     root = BTree.new(10)
+#
+#     assert_equal(
+#       BTree.new([10, 20, 30, 40, 50]),
+#       root.tap { [20, 30, 40, 50].each { |key| root.add key } }
+#     )
+#     assert_equal true, root.valid?
 #   end
 # end
