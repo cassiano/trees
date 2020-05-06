@@ -58,6 +58,7 @@ class Tree
   LESS_THAN = -1
   EQUAL_TO = 0
   GREATER_THAN = 1
+  ELLIPSIS = '…'
 
   include TreeCaching if CACHING
 
@@ -121,7 +122,7 @@ class Tree
     !leaf?
   end
 
-  def orphan?
+  def top_root?
     !parent
   end
 
@@ -255,7 +256,7 @@ class Tree
   def as_graphviz(image_file = 'tree.png')
     g = GraphViz.new(:G, type: :digraph)
 
-    draw_graph_tree g, g.add_nodes(SecureRandom.uuid, label: value.to_s, shape: leaf? ? :doublecircle : :circle)
+    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: value, shape: leaf? ? :doublecircle : :circle)
 
     g.output png: image_file
   end
@@ -319,10 +320,26 @@ class Tree
     [left, right].each do |subtree|
       if subtree
         # https://www.graphviz.org/doc/info/shapes.html
-        current_node = g.add_nodes(SecureRandom.uuid, label: subtree.value.to_s, shape: subtree.leaf? ? :doublecircle : :circle)
+        current_node = g.add_node(SecureRandom.uuid, label: subtree.value, shape: subtree.leaf? ? :doublecircle : :circle)
 
-        # # Draw the arrow pointing from the root node to this sub-tree.
-        g.add_edges root_node, current_node, label: [' ', subtree == left ? '≼' : '≻', ' ', value].join
+        edge_label =
+          case subtree
+            when left
+              if (ancestor_key = find_first_ancestor_key_with_non_left_descendant_type)
+                [ancestor_key, ELLIPSIS, value].join
+              else
+                [ELLIPSIS, value].join
+              end
+            when right
+              if (ancestor_key = find_first_ancestor_key_with_non_right_descendant_type)
+                [value, ELLIPSIS, ancestor_key].join
+              else
+                [value, ELLIPSIS].join
+              end
+          end
+
+        # # Draw the arrow pointing from the root key to this sub-tree.
+        g.add_edges root_node, current_node, label: edge_label
 
         subtree.draw_graph_tree g, current_node
       elsif !leaf?
@@ -341,6 +358,26 @@ class Tree
     raise "Cannot fill canvas with text `#{text}` at position #{position} in row #{row}" if position < 0 || position + text.size > canvas[row].size
 
     canvas[row][position..position + text.size - 1] = text
+  end
+
+  def find_first_ancestor_key_with_non_left_descendant_type
+    current = self
+
+    while !current.top_root? && current.descendant_type == :left
+      current = current.parent
+    end
+
+    current.parent.value unless current.top_root?
+  end
+
+  def find_first_ancestor_key_with_non_right_descendant_type
+    current = self
+
+    while !current.top_root? && current.descendant_type == :right
+      current = current.parent
+    end
+
+    current.parent.value unless current.top_root?
   end
 
   # PS: only cache methodswhich are R/O (i.e. that do not update the tree in any way) and depend exclusively on the current node and/or its descendants, never on its ancestors.
@@ -413,8 +450,8 @@ class BST < Tree
         # Has at least 1 child?
         if (child = node.left || node.right)
           node.copy_attrs_from child    # Copy the (single) child attributes to it.
-        elsif !node.orphan?   # Leaf node. Node has a parent?
-          node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the main root. Simply nullify its parent left or right subtree.
+        elsif !node.top_root?   # Leaf node. Node is top root?
+          node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the top root. Simply nullify its parent left or right subtree.
         else    # Main (and leaf) root.
           raise EmptyTreeError
         end
@@ -644,42 +681,43 @@ class AvlTree < BST
   enable_cache_for :balanced?, :balance_factor if CACHING
 end
 
-# root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
+if __FILE__ == $0
+  # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
 
-# def reorder_by_collecting_middle_element(items)
-#   return items if items.size <= 2
-#
-#   middle_index = items.size / 2
-#
-#   ([items[middle_index]] + reorder_by_collecting_middle_element(items[0..middle_index-1]) + reorder_by_collecting_middle_element(items[middle_index+1..-1]))
-# end
+  # def reorder_by_collecting_middle_element(items)
+  #   return items if items.size <= 2
+  #
+  #   middle_index = items.size / 2
+  #
+  #   ([items[middle_index]] + reorder_by_collecting_middle_element(items[0..middle_index-1]) + reorder_by_collecting_middle_element(items[middle_index+1..-1]))
+  # end
 
-# items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
-items = (1..(2 ** 6 - 1)).to_a.shuffle
+  # items = reorder_by_collecting_middle_element((1..(2**6 - 1)).to_a)
+  items = (1..(2 ** 6 - 1)).to_a.shuffle
 
-p items
+  p items
 
-@root = AvlTree.new(items.shift)
+  @root = AvlTree.new(items.shift)
 
-items.each_with_index do |item, i|
-  puts i if i % 1000 == 0
+  items.each_with_index do |item, i|
+    puts i if i % 1000 == 0
 
-  @root.add item
+    @root.add item
+  end
+
+  # p @root.as_text
+  # puts
+  # puts @root.as_gui
+  # puts
+  puts @root.as_tree_gui(width: 158)
+  puts
+  puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
+  puts "Height: #{@root.height}"
+  puts
+  p @root.in_order.map(&:value)
+  @root.as_graphviz; `open tree.png`
+
+  # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
+  # puts "Deleting and adding nodes..."
+  # 100_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**30); next if @root.find(value); @root.add value }; puts @root.balanced?
 end
-
-# p @root.as_text
-# puts
-# puts @root.as_gui
-# puts
-puts @root.as_tree_gui(width: 158)
-puts
-puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
-puts "Height: #{@root.height}"
-puts
-p @root.in_order.map(&:value)
-@root.as_graphviz; `open tree.png`
-
-# loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
-# puts "Deleting and adding nodes..."
-# 100_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**30); next if @root.find(value); @root.add value }; puts @root.balanced?
-
