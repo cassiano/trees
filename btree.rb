@@ -249,7 +249,9 @@ class BTree
   end
 
   def <=>(another_btree)
-    if BTree === another_btree
+    if object_id == another_btree.object_id
+      0
+    elsif BTree === another_btree
       if (parent_comparison = parent <=> another_btree.parent) == 0
         if (keys_comparison = keys <=> another_btree.keys) == 0
           subtrees <=> another_btree.subtrees
@@ -625,22 +627,22 @@ class BTree
 end
 
 if __FILE__ == $0
-  @items = (0..(2 ** 10 - 1)).map { |i| i * 10 }.shuffle
+  items = (0..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
 
-  p @items
+  p items
 
-  @root = BTree.new(@items[0])
+  root = BTree.new(items[0])
 
-  @items[1..-1].each_with_index do |item, i|
+  items[1..-1].each_with_index do |item, i|
     puts i if i % 1000 == 0
 
-    @root.add item
+    root.add item
   end
 
-  @root.display
-  puts "Tree average node size: #{"%3.1f" % (@root.average_keys_count)}"
+  root.display
+  puts "Tree average node size: #{"%3.1f" % (root.average_keys_count)}"
 
-  @items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; @root.delete key }
+  items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; root.delete key }
 
-  puts "\nTotal keys count: #{@root.total_keys_count}"
+  puts "\nTotal keys count: #{root.total_keys_count}"
 end

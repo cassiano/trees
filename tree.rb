@@ -61,6 +61,7 @@ class Tree
   ELLIPSIS = '…'
 
   include TreeCaching if CACHING
+  include Comparable
 
   class EmptyTreeError < StandardError
   end
@@ -204,9 +205,9 @@ class Tree
     [left&.min, value, right&.min].compact.min
   end
 
-  # Find path with maximum sum: `@root.find_min_max_reduced_path(:max, &:+).map(&:value)`
-  # Find path with minimum sum: `@root.find_min_max_reduced_path(:min, &:+).map(&:value)`
-  # Find path with maximum sum of last digit, only for even numbers: `@root.find_min_max_reduced_path(:max) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
+  # Find path with maximum sum: `root.find_min_max_reduced_path(:max, &:+).map(&:value)`
+  # Find path with minimum sum: `root.find_min_max_reduced_path(:min, &:+).map(&:value)`
+  # Find path with maximum sum of last digit, only for even numbers: `root.find_min_max_reduced_path(:max) { |memo, i| v = i % 10; memo + (v.even? ? v : 0) }.map(&:value)`
   def find_min_max_reduced_path(min_or_max, &block)
     raise "Please specify either :min or :max as the 1st parameter" unless [:min, :max].include?(min_or_max)
 
@@ -277,6 +278,31 @@ class Tree
   end
 
   alias_method :inspect, :to_s
+
+  def display
+    as_graphviz
+    `open tree.png`
+  end
+
+  def <=>(another_tree)
+    if object_id == another_tree.object_id
+      0
+    elsif Tree === another_tree
+      if (parent_comparison = parent <=> another_tree.parent) == 0
+        if (value_comparison = value <=> another_tree.value) == 0
+          if (left_comparison = left <=> another_tree.left) == 0
+            right <=> another_tree.right
+          else
+            left_comparison
+          end
+        else
+          value_comparison
+        end
+      else
+        parent_comparison
+      end
+    end
+  end
 
   protected
 
@@ -697,27 +723,23 @@ if __FILE__ == $0
 
   p items
 
-  @root = AvlTree.new(items.shift)
+  root = AvlTree.new(items.shift)
 
   items.each_with_index do |item, i|
     puts i if i % 1000 == 0
 
-    @root.add item
+    root.add item
   end
 
-  # p @root.as_text
-  # puts
-  # puts @root.as_gui
-  # puts
-  puts @root.as_tree_gui(width: 158)
+  puts root.as_tree_gui(width: 158)
   puts
-  puts "Tree fill factor: #{"%3.3f" % (@root.fill_factor * 100)} %"
-  puts "Height: #{@root.height}"
+  puts "Tree fill factor: #{"%3.3f" % (root.fill_factor * 100)} %"
+  puts "Height: #{root.height}"
   puts
-  p @root.in_order.map(&:value)
-  @root.as_graphviz; `open tree.png`
+  p root.in_order.map(&:value)
+  root.display
 
-  # loop { node = @root.in_order.sample; puts "Deleting #{node.value}"; @root.delete node; puts @root.as_tree_gui(width: 158); break if @root.count == 1 }
+  # loop { node = root.in_order.sample; puts "Deleting #{node.value}"; root.delete node; puts root.as_tree_gui(width: 158); break if root.count == 1 }
   # puts "Deleting and adding nodes..."
-  # 100_000.times { |i| puts i if i % 1000 == 0; node = @root; @root.delete node; value = rand(10**30); next if @root.find(value); @root.add value }; puts @root.balanced?
+  # 100_000.times { |i| puts i if i % 1000 == 0; node = root; root.delete node; value = rand(10**30); next if root.find(value); root.add value }; puts root.balanced?
 end
