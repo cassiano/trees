@@ -189,6 +189,22 @@ expect('Deleting B should yield case 3a') {
   )
 )
 
+expect('Deleting P should yield case 2b') {
+  root.tap { root.delete :P }
+}.to_equal(
+  BTree.new(
+    [:E, :L, :Q, :T, :X],
+    subtrees: [
+      BTree.new([:A, :C]),
+      BTree.new([:J, :K]),
+      BTree.new([:N, :O]),
+      BTree.new([:R, :S]),
+      BTree.new([:U, :V]),
+      BTree.new([:Y, :Z])
+    ]
+  )
+)
+
 # require "minitest/autorun"
 #
 # class TestMeme < MiniTest::Unit::TestCase
