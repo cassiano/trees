@@ -130,12 +130,12 @@ class BTree
     !parent
   end
 
-  def predecessor
-    leaf? ? keys[-1] : subtrees[keys_count].predecessor
+  def max
+    leaf? ? keys[-1] : subtrees[keys_count].max
   end
 
-  def successor
-    leaf? ? keys[0] : subtrees[0].successor
+  def min
+    leaf? ? keys[0] : subtrees[0].min
   end
 
   def maximum_node_size_reached?
@@ -238,7 +238,7 @@ class BTree
   def as_graphviz(image_file = 'tree.png')
     g = GraphViz.new(:G, type: :digraph)
 
-    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: keys.join(', '), shape: leaf? ? :rectangle : :ellipse)
+    draw_graph_tree g, g.add_node(SecureRandom.uuid, label: keys.join('  '), shape: leaf? ? :rectangle : :ellipse)
 
     g.output png: image_file
   end
@@ -316,7 +316,7 @@ class BTree
   def draw_graph_tree(g, root_node)
     subtrees.each_with_index do |subtree, index|
       # https://www.graphviz.org/doc/info/shapes.html
-      current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join(', '), shape: subtree.leaf? ? :rectangle : :ellipse)
+      current_node = g.add_node(SecureRandom.uuid, label: subtree.keys.join('  '), shape: subtree.leaf? ? :rectangle : :ellipse)
 
       edge_label = if index == 0
         if (ancestor_key = find_first_ancestor_key_with_non_minimum_descendant_index)
@@ -488,8 +488,9 @@ class BTree
 
   def key_found?(k)
     subtree_index = find_subtree_index(k)
+    found = subtree_index < keys_count && keys[subtree_index] == k
 
-    [subtree_index < keys_count && keys[subtree_index] == k, subtree_index]
+    [found, subtree_index]
   end
 
   def move_key_from_left_sibling(sibling, stored_descendant_index)
@@ -639,10 +640,14 @@ if __FILE__ == $0
     root.add item
   end
 
-  root.display
-  puts "Tree average node size: #{"%3.1f" % (root.average_keys_count)}"
+  root.display if items.size <= 2 ** 8
 
-  items.shuffle.each_with_index { |key, i| puts "---> (#{i + 1}) Deleting #{key}..."; root.delete key }
+  puts "Tree height: #{root.height}"
+  puts "Tree average node size: #{"%3.1f" % (root.average_keys_count)}"
+  puts "Tree is valid? #{root.valid?}"
+
+  items.shuffle.each_with_index { |key, i| puts "(#{i + 1}) Deleting #{key}..."; root.delete key; raise "Invalid tree" if i % (items.size / 10) == 0 && !root.valid? }
 
   puts "\nTotal keys count: #{root.total_keys_count}"
+  puts "Tree is valid? #{root.valid?}"
 end
