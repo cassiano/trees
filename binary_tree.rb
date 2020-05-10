@@ -6,7 +6,7 @@ require 'securerandom'
 
 DEBUG = true
 
-module TreeCaching
+module BinaryTreeCaching
   def self.included(base)
     base.extend ClassMethods
 
@@ -50,7 +50,7 @@ module TreeCaching
   end
 end
 
-class Tree
+class BinaryTree
   CACHING = true
   ASSERTIONS = true
   NEW_LINE = "\n"
@@ -60,10 +60,10 @@ class Tree
   GREATER_THAN = 1
   ELLIPSIS = '…'
 
-  include TreeCaching if CACHING
+  include BinaryTreeCaching if CACHING
   include Comparable
 
-  class EmptyTreeError < StandardError
+  class EmptyBinaryTreeError < StandardError
   end
 
   attr_accessor :value
@@ -247,7 +247,7 @@ class Tree
   # ┌─┘         └─┐                        ┌─┴─┐       └─┐    ┌──┘      ┌──┴─┐    ┌─┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┴─┐    ┌──┘      ┌──┴─┐    ┌──┴─┐    ┌──┴─┐
   # 1             5                        11  13        16   18        21   23   26  29   32   35   38   41   44   46   48        51   54   56   58   61   63
   def as_tree_gui(width:)
-    return "Tree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
+    return "BinaryTree is too high and cannot be drawn!" if (tree_height = height) > Math.log(width, 2).to_int
 
     (tree_height * 2 - 1).times.inject([]) { |memo, _| memo << [' ' * width, NEW_LINE].join }.tap do |canvas|
       inner_as_tree_gui canvas, 0..(width - 1), 1
@@ -287,7 +287,7 @@ class Tree
   def <=>(another_tree)
     if object_id == another_tree.object_id
       0
-    elsif Tree === another_tree
+    elsif BinaryTree === another_tree
       if (parent_comparison = parent <=> another_tree.parent) == 0
         if (value_comparison = value <=> another_tree.value) == 0
           if (left_comparison = left <=> another_tree.left) == 0
@@ -413,7 +413,7 @@ class Tree
   end
 end
 
-class BST < Tree
+class BST < BinaryTree
   attr_accessor :comparison_block
 
   def initialize(*args, &comparison_block)
@@ -479,7 +479,7 @@ class BST < Tree
         elsif !node.top_root?   # Leaf node. Node is top root?
           node.parent.send "#{node.descendant_type}=", nil    # Leaf node which is not the top root. Simply nullify its parent left or right subtree.
         else    # Main (and leaf) root.
-          raise EmptyTreeError
+          raise EmptyBinaryTreeError
         end
       end
     end
@@ -526,7 +526,7 @@ class BST < Tree
   enable_cache_for :find, :max, :min if CACHING
 end
 
-class AvlTree < BST
+class AvlBinaryTree < BST
   attr_accessor :ancestors_checked_after_insertion
 
   def add(node_value)
@@ -538,7 +538,7 @@ class AvlTree < BST
       end
     ensure
       if ASSERTIONS
-        raise "Tree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
+        raise "BinaryTree became unbalanced after adding node #{node_value}!" unless top_root.balanced?
       end
     end
   end
@@ -560,11 +560,11 @@ class AvlTree < BST
         end
       end
 
-      # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
+      # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlBinaryTree:0x00007f8c079626a8>)`
       # node_parent.ancestors.each(&:rebalance_after_deletion) if node_parent
     ensure
       if ASSERTIONS
-        raise "Tree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
+        raise "BinaryTree became unbalanced after deleting node #{node.value}!" unless top_root.balanced?
       end
     end
   end
@@ -708,7 +708,7 @@ class AvlTree < BST
 end
 
 if __FILE__ == $0
-  # root = Tree.new(:a, left: Tree.new(:b), right: Tree.new(:c, left: Tree.new(:d)))
+  # root = BinaryTree.new(:a, left: BinaryTree.new(:b), right: BinaryTree.new(:c, left: BinaryTree.new(:d)))
 
   # def reorder_by_collecting_middle_element(items)
   #   return items if items.size <= 2
@@ -723,7 +723,7 @@ if __FILE__ == $0
 
   p items
 
-  root = AvlTree.new(items.shift)
+  root = AvlBinaryTree.new(items.shift)
 
   items.each_with_index do |item, i|
     puts i if i % 1000 == 0
@@ -733,7 +733,7 @@ if __FILE__ == $0
 
   puts root.as_tree_gui(width: 158)
   puts
-  puts "Tree fill factor: #{"%3.3f" % (root.fill_factor * 100)} %"
+  puts "BinaryTree fill factor: #{"%3.3f" % (root.fill_factor * 100)} %"
   puts "Height: #{root.height}"
   puts
   p root.in_order.map(&:value)
