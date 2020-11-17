@@ -3,6 +3,7 @@
 
 require 'ruby-graphviz'
 require 'securerandom'
+require 'json'
 
 # https://www.geeksforgeeks.org/introduction-of-b-tree-2/
 class BTree
@@ -131,7 +132,7 @@ class BTree
   end
 
   def max
-    leaf? ? keys[-1] : subtrees[keys_count].max
+    leaf? ? keys[-1] : subtrees[-1].max
   end
 
   def min
@@ -211,7 +212,7 @@ class BTree
   end
 
   def descendant_index
-    parent&.find_subtree_index keys[0]    # The key is not relevant. We could have picked any of the current node.
+    parent&.find_subtree_index keys[0]    # The key is not relevant, so we could have picked any of the current node. Picking the 1st key gives us a (slightly) better performance.
   end
 
   def height
@@ -246,6 +247,12 @@ class BTree
   def display
     as_graphviz
     `open tree.png`
+  end
+
+  def to_hash
+    { name: keys.join(' ') }.tap do |hash|
+      hash.merge! children: subtrees.map(&:to_hash) unless leaf?
+    end
   end
 
   def <=>(another_btree)
@@ -628,7 +635,7 @@ class BTree
 end
 
 if __FILE__ == $0
-  items = (0..(2 ** 6 - 1)).map { |i| i * 10 }.shuffle
+  items = (0..(2 ** 8 - 1)).map { |i| i * 10 }.shuffle
 
   p items
 
@@ -641,6 +648,8 @@ if __FILE__ == $0
   end
 
   root.display if items.size <= 2 ** 8
+
+  p root.to_hash.to_json
 
   puts "Tree height: #{root.height}"
   puts "Tree average node size: #{"%3.1f" % (root.average_keys_count)}"

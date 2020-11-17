@@ -526,7 +526,7 @@ class BST < BinaryTree
   enable_cache_for :find, :max, :min if CACHING
 end
 
-class AvlBinaryTree < BST
+class AvlTree < BST
   attr_accessor :ancestors_checked_after_insertion
 
   def add(node_value)
@@ -560,7 +560,7 @@ class AvlBinaryTree < BST
         end
       end
 
-      # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlBinaryTree:0x00007f8c079626a8>)`
+      # Check the reason for the message: `NoMethodError (protected method `rebalance_after_deletion' called for #<AvlTree:0x00007f8c079626a8>)`
       # node_parent.ancestors.each(&:rebalance_after_deletion) if node_parent
     ensure
       if ASSERTIONS
@@ -723,9 +723,9 @@ if __FILE__ == $0
 
   p items
 
-  root = AvlBinaryTree.new(items.shift)
+  root = AvlTree.new(items[0])
 
-  items.each_with_index do |item, i|
+  items[1..-1].each_with_index do |item, i|
     puts i if i % 1000 == 0
 
     root.add item
